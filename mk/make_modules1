@@ -4,9 +4,7 @@ set -ex
 path_o=${PRODADMDIR}/obj
 path_f=${PRODADMDIR}/src/mod
      
-module load compilers/intel/2019.4.243
-module load intelmpi/2019.4.243
-module load netcdf
+module load intelmpi/2018.5.288 intel/18.0.4
 
 modfile="wam_file_module wam_mpi_module wam_model_module \
    wam_output_parameter_module wam_coordinate_module wam_general_module \

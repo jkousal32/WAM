@@ -1,4 +1,4 @@
 #/bin/bash &
 #++
-PRODADMDIR=/gpfs/home/behrens/xwam
+PRODADMDIR=/pf/b/b381438/WAM
 export PRODADMDIR

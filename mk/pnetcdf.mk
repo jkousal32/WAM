@@ -8,5 +8,4 @@ make_netcdf.o wam_flux_module.o wam_output_parameter_module.o wam_jonswap_module
 wam_radiation_module.o wam_swell_module.o wam_propagation_module.o
 
 pnetcdf:
-	mpiifort $(OBJECTS) -o pnetcdf -I/project/opt/software/netcdf/4.7.0/intel/include/  \
-        -L/project/opt/software/netcdf/4.7.0/intel/lib/ -lnetcdf -lnetcdff
+	mpiifort $(OBJECTS) -o pnetcdf -L/sw/rhel6-x64/netcdf/netcdf_fortran-4.4.2-intel14/lib -lnetcdff -Wl,-rpath,/sw/rhel6-x64/netcdf/netcdf_fortran-4.4.2-intel14/lib -L/sw/rhel6-x64/netcdf/netcdf_c-4.3.2-gcc48/lib -Wl,-rpath,/sw/rhel6-x64/netcdf/netcdf_c-4.3.2-gcc48/lib -L/sw/rhel6-x64/hdf5/hdf5-1.8.14-threadsafe-gcc48/lib -Wl,-rpath,/sw/rhel6-x64/hdf5/hdf5-1.8.14-threadsafe-gcc48/lib -L/sw/rhel6-x64/sys/libaec-0.3.2-gcc48/lib -Wl,-rpath,/sw/rhel6-x64/sys/libaec-0.3.2-gcc48/lib -lnetcdf -lhdf5_hl -lhdf5 -lsz -lcurl -lz -lnetcdf

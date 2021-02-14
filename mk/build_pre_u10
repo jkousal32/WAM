@@ -4,9 +4,7 @@ set -ex
 path_o=${PRODADMDIR}/obj
 path_f=${PRODADMDIR}/src/box
    
-module load compilers/intel/2019.4.243
-module load intelmpi/2019.4.243
-module load netcdf
+module load intelmpi/2018.5.288 intel/18.0.4
      
 modfile="incdate pre_u10"
 
