@@ -1,0 +1,22 @@
+####################################################################################
+# Run programs as needed
+
+# Create grid
+# qsub jpgrid
+
+# Pre-processing inputs
+qsub jpreproc
+
+# Run model
+qsub jwam
+
+# Run netcdf field post-processing 
+qsub jpnetcdf
+
+# Run spectral post-processing
+# qsub jpspec
+#
+# Create and save grid files (not sure of difference between ptime and ptime_s...)
+#  - non-netcdf post-processing option (i.e. ASCII) for field and spectral?
+# qsub jptime
+# qsub jptime_s

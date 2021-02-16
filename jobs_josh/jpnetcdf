@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+#==>  WAM post-processing pnetcdf
+#
+#     Arno Behrens (March January 2016)
+#
+#SBATCH --job-name=pnetcdf
+#SBATCH --partition=compute
+#SBATCH --ntasks=1
+#SBATCH --time=00:05:00
+#SBATCH --mail-type=FAIL
+#SBATCH --account=bu1213
+#SBATCH --output=pnetcdf.o%j
+#SBATCH --error=pnetcdf.e%j
+#
+module load intelmpi/2018.5.288 intel/18.0.4
+#
+set -k
+WAMDIR=/pf/b/b381438/WAM
+WORK=/work/bu1213/b381438/WAM
+cd ${WORK}/tempsg
+#
+cp ${WAMDIR}/const/Coarse_Grid/JAN/nlnetcdf NETCDF_User
+cp ${WAMDIR}/abs/pnetcdf pnetcdf.exe
+#
+srun -N 1 -n 1 --mpi=pmi2 -t 5 ./pnetcdf.exe
+#
+mv pnetcdf_prot ${WAMDIR}/dayfiles/pnetcdf_prot_coarse_JAN
+mv WAVE* ../coarse/JAN
+rm NETCDF_User pnetcdf.exe
+#
+# ===================================================================
+#  NETCDF FILES HAVE BEEN CREATED AND SAVED.
+#  END OF JOB PNETCDF.
+# ===================================================================
+#

@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+#     Arno Behrens (May 2019)
+#
+#==>  WAM post-processing pspec
+#
+#SBATCH --job-name=pspec
+#SBATCH --partition=compute
+#SBATCH --ntasks=1
+#SBATCH --time=00:05:00
+#SBATCH --mail-type=FAIL
+#SBATCH --account=bu1213
+#SBATCH --output=pspec.o%j
+#SBATCH --error=pspec.e%j
+#
+module load intelmpi/2018.5.288 intel/18.0.4
+#
+set -k
+WAMDIR=/pf/b/b381438/WAM
+WORK=/work/bu1213/b381438/WAM
+#
+cd ${WORK}/tempsg
+cp ${WAMDIR}/const/Coarse_Grid/JAN/Spectra_User .
+cp ${WAMDIR}/abs/pspec pspec.exe
+#
+./pspec.exe
+#
+mv Spectra_Prot ${WAMDIR}/dayfiles/pspec_prot_coarse_JAN
+rm Spectra_User pspec.exe
+#
+# ===================================================================
+#  GRID FILES HAVE BEEN CREATED AND SAVED.
+#  END OF JOB PGRID.
+# ===================================================================
+#

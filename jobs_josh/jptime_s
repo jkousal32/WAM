@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+#==>  WAM post-processing ptime_s
+#
+#     Arno Behrens (July 2015)
+#
+#SBATCH --job-name=ptime_s
+#SBATCH --partition=compute
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=00:05:00
+#SBATCH --mail-type=FAIL
+#SBATCH --account=bu1213
+#SBATCH --output=ptime_s.o%j
+#SBATCH --error=ptime_s.e%j
+#
+module load intelmpi/2018.5.288 intel/18.0.4
+#
+set -k
+WAMDIR=/pf/b/b381438/WAM
+WORK=/work/bu1213/b381438/WAM
+#
+cd ${WORK}/tempsg
+cp ${WAMDIR}/const/Coarse_Grid/JAN/Time_User_S .
+cp ${WAMDIR}/abs/ptime_S ptime_S.exe
+#
+./ptime_S.exe
+mv Time_Prot_S ${WAMDIR}/dayfiles/ptime_S_prot_coarse
+rm Time_User_S ptime_S.exe 
+#
+# ===================================================================
+#  GRID FILES HAVE BEEN CREATED AND SAVED.
+#  END OF JOB PTIME.
+# ===================================================================
+#

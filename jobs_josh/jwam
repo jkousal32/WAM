@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+#==>  WAM model run
+#
+#     Arno Behrens (May 2019)
+#
+#SBATCH --job-name=TS_Wave
+#SBATCH --partition=compute
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=2
+#SBATCH --time=00:30:00
+#SBATCH --mail-type=FAIL
+#SBATCH --account=bu1213
+#SBATCH --output=wam.o%j
+#SBATCH --error=wam.e%j
+#
+module load intelmpi/2018.5.288 intel/18.0.4
+#
+set +k
+WAMDIR=/pf/b/b381438/WAM
+WORK=/work/bu1213/b381438/WAM
+#
+cd ${WORK}/tempsg
+#cp ${WAMDIR}/const/OBS* .
+cp ${WAMDIR}/const/Coarse_Grid/JAN/WAM_User .
+cp ${WORK}/work/Grid_info_COARSE_GRID .
+cp ${WAMDIR}/const/WIND_INPUT.DAT .
+#
+cp ${WAMDIR}/abs/wam wam.exe
+mpirun ./wam.exe
+#
+cp logfile.0 ${WAMDIR}/dayfiles/wam_prot_coarse_JAN
+mv BLS* MAP* OUT* C* ../coarse/JAN
+rm wam.exe WAM_User Grid_info_COARSE_GRID WIND_INPUT.DAT
+#rm OBS*
+#

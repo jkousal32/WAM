@@ -58,14 +58,18 @@
  T    F    THIRD SWELL TM1 PERIOD ( SECONDS )                         
  T    F    THIRD SWELL DIRECTION ( DEGREE FROM NORTH TO )             
  F    F    DUMMY                                                      
- T    F    RADIATION STRESS TENSOR SXX ( KG/S/S )                     
- T    F    RADIATION STRESS TENSOR SYY ( KG/S/S )                     
- T    F    RADIATION STRESS TENSOR SXY ( KG/S/S )                     
+ F    F    RADIATION STRESS TENSOR SXX ( KG/S/S )                     
+ F    F    RADIATION STRESS TENSOR SYY ( KG/S/S )                     
+ F    F    RADIATION STRESS TENSOR SXY ( KG/S/S )                     
  F    F    DUMMY                                                      
- T    F    X-COMP. WAVE FORCE PER SURFACE UNIT ( N/M/M )              
- T    F    Y-COMP. WAVE FORCE PER SURFACE UNIT ( N/M/M )              
- T    T    X-COMP. STOKES DRIFT ( M/S )                               
- T    T    Y-COMP. STOKES DRIFT ( M/S )                               
+ F    F    X-COMP. WAVE FORCE PER SURFACE UNIT ( N/M/M )              
+ F    F    Y-COMP. WAVE FORCE PER SURFACE UNIT ( N/M/M )              
+ F    T    X-COMP. STOKES DRIFT ( M/S )                               
+  X-COMP. STOKES DRIFT ( M/S )                               
+ IS NOT STORED IN FILE
+ F    T    Y-COMP. STOKES DRIFT ( M/S )                               
+  Y-COMP. STOKES DRIFT ( M/S )                               
+ IS NOT STORED IN FILE
  T    T    ENERGY FLUX TO OCEAN ( KG/S/S/S )                          
  T    T    TOTAL ENERGY FLUX FROM WIND TO WAVES ( KG/S/S/S )          
  T    T    X-COMP.  MOMENTUM FLUX INTO OCEAN ( KG/M/S/S )             
