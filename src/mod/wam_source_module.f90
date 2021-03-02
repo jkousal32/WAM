@@ -413,6 +413,12 @@ REAL    :: SSOURCE(SIZE(FL3,1),SIZE(FL3,2),SIZE(FL3,3)) !! SOURCE TERMS CONTRIBU
 ! MODULATION OF SOURCE TERM BY IMPLICIT FACTOR IN THE CALCULATION
 ! OF THE SURFACE WAVE FLUXES To THE OCEANS.
 LOGICAL, PARAMETER :: LLIMPFLX=.FALSE.
+
+! JK Local variables within IMPLSCH
+REAL    :: WN(SIZE(FL3,1),SIZE(FL3,3))   !! WAVE NUMBER
+REAL    :: CGG(SIZE(FL3,1),SIZE(FL3,3))  !! GROUP VELOCITY
+INTEGER :: ICON                          !! CONTROL COUNTER
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     1. CALCULATE ROUGHNESS LENGTH AND FRICTION VELOCITIES.                   !
@@ -465,6 +471,23 @@ CALL AIRSEA (U10, TAUW, USTAR, Z0)
 IF (IPHYS .EQ. 1 ) THEN
    CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
+ELSEIF (IPHYS .EQ. 2 ) THEN
+   ! CALCULATE GROUP VELOCITIES AND WAVE NUMBERS 
+   !CALL WAVNU2 (SI,  DEPTH,  K,  CG, 1E-7, 15, ICON) ! (WW3 CALL)
+   CALL WAVNU2 ( FL3, DEPTH, WN, CGG, 1E-7, 15, ICON)
+   !WRITE (IU06,*) 'FR(:): ', FR(:)
+   !WRITE (IU06,*) 'DEPTH(1): ', DEPTH(1)
+   !WRITE (IU06,*) 'WN(1,:): ', WN(1,:)
+   !WRITE (IU06,*) 'CGG(1,:): ', CGG(1,:)
+
+   ! CALCULATE MEAN PARAMETERS 
+   !CALL W3SPR6 (A, CG, WN, EMEAN, FMEAN, WNMEAN, AMAX, FP)
+
+!   CALL SINPUT_ST6 (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
+!&                   INDEP, LLWS)
+   ! JK Temporary proxy for ST6 
+   CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
+&                   INDEP, LLWS)
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
@@ -484,6 +507,13 @@ IF (IPHYS .EQ. 1 ) THEN
    CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
+ELSEIF (IPHYS .EQ. 2 ) THEN
+!   CALL SINPUT_ST6 (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
+!&                   INDEP, LLWS)
+   ! JK Temporary proxy for ST6 
+   CALL SINPUT (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
+&               INDEP, LLWS)
+   IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
@@ -495,6 +525,10 @@ CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP)
 
 IF (IPHYS .EQ. 1 ) THEN
   CALL SDISSIP_ARD (FL3, SL, FL, USTAR, UDIR, ROAIRN, INDEP)
+ELSEIF (IPHYS .EQ. 2 ) THEN
+  !CALL SDISSIP_ST6 (FL3, SL, FL, USTAR, UDIR, ROAIRN, INDEP)
+   ! JK Temporary proxy for ST6 
+  CALL SDISSIP (FL3, SL, FL, USTAR, UDIR, ROAIRN, INDEP)
 ELSE
   CALL SDISSIP     (FL3, SL, FL, EMEAN, F1MEAN, XKMEAN, INDEP)
 ENDIF
@@ -4220,5 +4254,139 @@ END SUBROUTINE WSIGSTAR
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
+SUBROUTINE WAVNU2 ( F, DEPTH, WN, CGG, EPS, NMAX, ICON)
+
+! ---------------------------------------------------------------------------- !
+!  1. Purpose :
+!
+!     Calculation of wavenumber K from a given angular
+!     frequency W and waterdepth H.
+!
+!  2. Method :
+!
+!     Used equation :
+!                        2
+!                       W  = G*K*TANH(K*H)
+!
+!     Because of the nature of the equation, K is calculated
+!     with an itterative procedure.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+REAL,    INTENT(IN)    :: F (:, :, :)    !! SPECTRUM.
+REAL,    INTENT(IN)    :: DEPTH (:)      !! WATER DEPTH.
+
+INTEGER, INTENT(IN)     :: NMAX        !! MAX. NO. OF REPETITIONS IN CALCULATIONS
+REAL,    INTENT(IN)     :: EPS         !! WANTED MAX. DIFF. BETWEEN K AND KOLD
+
+REAL,    INTENT(OUT)    :: WN (:,:)    !! WAVE NUMBER
+REAL,    INTENT(OUT)    :: CGG(:,:)    !! GROUP VELOCITY
+INTEGER, INTENT(OUT)    :: ICON        !! CONTROL COUNTER
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------
+
+INTEGER :: M, IJ, I
+REAL    :: F1, W0, FD, DIF, RDIF, KOLD
+REAL    :: K, CG, SIG, H
+
+! ---------------------------------------------------------------------------- !
+
+
+      ! LOOP OVER WAVE NUMBERS
+      DO M = 1,SIZE(F,3)
+        
+        ! LOOP OVER LOCATIONS
+        DO IJ = 1,SIZE(F,1)
+
+!
+!         INIT.
+!
+          SIG = ZPI*FR(M)
+          H   = DEPTH(IJ)
+
+          CG   = 0
+          KOLD = 0
+          ICON = 0
+          W0   = ABS(SIG)
+
+!
+!         1st approach :
+!
+          IF (W0.LT.SQRT(G/H)) THEN
+              K = W0/SQRT(G*H)
+            ELSE
+              K = W0*W0/G
+            END IF
+
+          !K =  W0*W0/G !JK
+
+          !WRITE (IU06,*) 'M= ',M
+          !WRITE (IU06,*) 'FR(M)= ', FR(M)
+          !WRITE (IU06,*) 'SIG= ',SIG
+          !WRITE (IU06,*) 'W0= ', W0
+          !WRITE (IU06,*) 'K= ', K
+
+          !WN(IJ,M)  = K          ! JK - hack valid for deep water only
+          !CGG(IJ,M) = W0/K * 0.5 ! JK - hack valid for deep water only
+
+!
+!         Refinement :
+!
+          DO I=1, NMAX
+            DIF = ABS(K-KOLD)
+            IF (K.NE.0) THEN
+                RDIF = DIF/K
+              ELSE
+                RDIF = 0
+              END IF
+            IF (DIF .LT. EPS .AND. RDIF .LT. EPS) THEN
+                ICON = 1
+                GOTO 100
+              ELSE
+                KOLD = K
+                F1   = G*KOLD*TANH(KOLD*H)-W0**2
+                IF (KOLD*H.GT.25) THEN
+                    FD = G*TANH(KOLD*H)
+                  ELSE
+                    FD = G*TANH(KOLD*H) + G*KOLD*H/((COSH(KOLD*H))**2)
+                  END IF
+                K    = KOLD - F1/FD
+              END IF
+            END DO
+!  
+          DIF   = ABS(K-KOLD)
+          RDIF  = DIF/K
+          IF (DIF .LT. EPS .AND. RDIF .LT. EPS) ICON = 1
+ 100      CONTINUE
+          IF (2*K*H.GT.25) THEN
+              CG = W0/K * 0.5
+            ELSE
+              CG = W0/K * 0.5*(1+(2*K*H/SINH(2*K*H)))
+            END IF
+          IF (SIG.LT.0.0) THEN
+              K  = (-1)*K
+              CG = CG*(-1)
+            END IF
+
+          WN(IJ,M)  = K
+          CGG(IJ,M) = CG
+
+        END DO
+        ! END LOOP OVER LOC
+
+      END DO
+      ! END LOOP OVER WAVE NUMBERS
+
+      RETURN
+
+END SUBROUTINE WAVNU2
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 END MODULE WAM_SOURCE_MODULE

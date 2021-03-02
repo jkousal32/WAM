@@ -1,0 +1,31 @@
+
+********************************************************************************
+*                                                                              *
+*  This is the automated job summary provided by DKRZ.                         *
+*  If you encounter problems, need assistance or have any suggestion, please   *
+*  write an email to                                                           *
+*                                                                              *
+*  --  beratung@dkrz.de --                                                     *
+*                                                                              *
+*                       We hope you enjoyed the DKRZ supercomputer MISTRAL ... *
+*
+* JobID            : 27966416
+* JobName          : pgrid                                             
+* Account          : bu1213
+* User             : b381438 (200651), bu1213 (200590)                 
+* Partition        : compute
+* QOS              : normal
+* Nodelist         : m10701 (1)                                                
+* AvgCommBlocking  : 0.0000 (in [0,4] less is better)
+* Submit date      : 2021-02-16T23:26:55
+* Start time       : 2021-02-16T23:29:06
+* End time         : 2021-02-16T23:29:08
+* Elapsed time     : 00:00:02 (Timelimit=00:30:00)                     
+* Command          : /mnt/lustre01/pf/b/b381438/WAM/jobs_josh/jpgrid
+* WorkDir          : /mnt/lustre01/pf/b/b381438/WAM/jobs_josh
+*
+* StepID | JobName      NodeHours    MaxRSS [Byte] (@task)   ReqCPUFreq [Hz]
+* ------------------------------------------------------------------------------
+* batch  | batch          0.00056
+* ------------------------------------------------------------------------------
+

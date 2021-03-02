@@ -1,0 +1,49 @@
+###################################################
+#         Implementation of ST6 in WAM
+#
+#               Compile, run, view
+#
+#                Author: J. Kousal
+#              josh.kousal@gmail.com
+#
+###################################################
+# ------------ Compile and create binaries ----------------
+
+cd /pf/b/b381438/WAM/mk
+./create_binaries
+
+# ------------------------ Run ----------------
+
+cd /pf/b/b381438/WAM/jobs_josh
+
+# Create grid
+#qsub jpgrid
+
+# Pre-processing inputs
+#qsub jpreproc
+
+# Run model
+qsub jwam
+
+# Run netcdf field post-processing 
+qsub jpnetcdf
+
+# Run spectral post-processing
+#qsub jpspec
+#
+# Create and save grid files (not sure of difference between ptime and ptime_s...)
+#qsub jptime
+#qsub jptime_s
+
+# ------------------- View outputs --------------
+
+# See recent log files
+v /work/bu1213/b381438/WAM/tempsg/logfile.0
+lr wam.*
+
+# NetCDF file
+ncview /work/bu1213/b381438/WAM/coarse/JAN/WAVE1978090606.nc &
+
+
+
+
