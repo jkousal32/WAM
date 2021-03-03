@@ -22,6 +22,7 @@ USE WAM_INTERFACE_MODULE, ONLY:  &
 &       TOTAL_ENERGY,            &  !! COMPUTATION OF TOTAL ENERGY.
 &       TM1_TM2_PERIODS,         &  !! COMPUTATION OF MEAN WAVENUMBER.
 &       WM1_WM2_WAVENUMBER,      &  !! COMPUTATION OF MEAN WAVENUMBER.
+&       PEAK_FREQ,               &  !! COMPUTATION OF PEAK FREQUENCY.
 &       TRANSF                      !! NARROW BAND LIMIT BENJAMIN-FEIR INDEX
                                     !! FOR THE FINITE DEPTH.
 USE WAM_GENERAL_MODULE, ONLY:    &
@@ -471,15 +472,27 @@ REAL    :: SSOURCE(SIZE(FL3,1),SIZE(FL3,2),SIZE(FL3,3)) !! SOURCE TERMS CONTRIBU
 ! OF THE SURFACE WAVE FLUXES To THE OCEANS.
 LOGICAL, PARAMETER :: LLIMPFLX=.FALSE.
 
+! JK FOR WAVNU2
 REAL    :: WN(SIZE(FL3,1),SIZE(FL3,3))   !! WAVE NUMBER
 REAL    :: CGG(SIZE(FL3,1),SIZE(FL3,3))  !! GROUP VELOCITY
 INTEGER :: ICON                          !! CONTROL COUNTER
 
+! JK FOR W3SPR6
 REAL    :: EMEAN1(SIZE(FL3,1))       !! MEAN WAVE ENERGY
 REAL    :: FMEAN1(SIZE(FL3,1))      !! MEAN WAVE FREQUENCY
 REAL    :: WNMEAN1(SIZE(FL3,1))      !! MEAN WAVENUMBER
 REAL    :: AMAX(SIZE(FL3,1))        !! MAX. ACTION DENSITY IN SPECTRUM
 REAL    :: FP1(SIZE(FL3,1))          !! PEAK FREQUENCY (RAD)
+
+! JK FOR PEAK FREQ
+REAL :: F1D(SIZE(FL3,1),SIZE(FL3,3))    !! FREQUENCY SPECTRA
+REAL :: F1A(SIZE(FL3,1),SIZE(FL3,2))    !! DIRECTIONAL SPECTRA
+REAL :: THMAX(SIZE(FL3,1))              !! MAX FREQ SPECTRA
+REAL :: FP(SIZE(FL3,1))              !! MAX FREQ SPECTRA
+REAL :: XMAX(SIZE(FL3,1))              !! MAX FREQ SPECTRA
+REAL :: SIG_OM(SIZE(FL3,1))            !! RELATIVE WIDTH IN FREQUENCY
+REAL :: YMAX(SIZE(FL3,1))              !! MAX DIRECTIONAL SPECTRUM
+REAL :: SIG_TH(SIZE(FL3,1))            !! RELATIVE WIDTH IN DIRECTION
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -524,6 +537,23 @@ ELSE
    CALL WM1_WM2_WAVENUMBER (FL3, EMEAN, WM1=AKMEAN, WM2=XKMEAN)
 END IF
 
+!     2.4 Peak frequencies                                                     !
+!         ---------------------------------                                    !
+
+IF (IPHYS .EQ. 2 ) then
+   F1D = SUM(FL3, DIM=2)*DELTH  !! 1-D Frequency Spectra
+   
+   DO K = 1, KL
+      M = 1
+      F1A(:,K) = FL3(:,K,M)*DF(M)
+      DO M = 2,ML
+         F1A(:,K) = F1A(:,K)+FL3(:,K,M)*DF(M)
+      END DO
+   END DO
+
+   CALL PEAK_FREQ (F1D, F1A, XMAX, FP, SIG_OM, YMAX, THMAX, SIG_TH)
+END IF
+
 ! -------------------------------------------------------------------------!
 !                                                                          !
 !     3. COMPUTATION OF SOURCE FUNCTIONS AND DERIVATIVES.                  !
@@ -537,9 +567,6 @@ ELSEIF (IPHYS .EQ. 2 ) THEN
 
    ! CALCULATE GROUP VELOCITIES AND WAVE NUMBERS 
    CALL WAVNU2 ( FL3, DEPTH, WN, CGG, 1E-7, 15, ICON)
-
-   ! CALCULATE MEAN PARAMETERS 
-   CALL W3SPR6 (FL3, CGG, WN, EMEAN1, FMEAN1, WNMEAN1, AMAX, FP1)
 
 !   CALL SINPUT_ST6 (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 !&                   INDEP, LLWS)
@@ -562,17 +589,15 @@ ELSEIF (IPHYS .EQ. 2 ) THEN
    !'TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz):',TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz)
 
    ! W3SPR6  
-   WRITE (IU06,*) 'EMEAN1(:): ', EMEAN1(1:5)
-
-   WRITE (IU06,*) 'FMEAN (WAM NATIVE): ', FMEAN(1:5)
-   WRITE (IU06,*) 'FMEAN (NEW): ', FMEAN1(1:5)
-
-   WRITE (IU06,*) 'WN1 MEAN (WAM NATIVE): ', AKMEAN(1:5)
-   WRITE (IU06,*) 'WN2 MEAN (WAM NATIVE): ', XKMEAN(1:5)
-   WRITE (IU06,*) 'WNMEAN (NEW): ', WNMEAN1(1:5)
-
-   WRITE (IU06,*) 'AMAX(:): ', AMAX(1:5)
-   WRITE (IU06,*) 'FP1(:): ', FP1(1:5)
+   !CALL W3SPR6 (FL3, CGG, WN, EMEAN1, FMEAN1, WNMEAN1, AMAX, FP1)
+   !WRITE (IU06,*) 'EMEAN (WAM NATIVE): ', EMEAN(1:5)
+   !WRITE (IU06,*) 'EMEAN (NEW): ', EMEAN1(1:5)
+   !WRITE (IU06,*) 'FMEAN (WAM NATIVE): ', FMEAN(1:5)
+   !WRITE (IU06,*) 'FMEAN (NEW): ', FMEAN1(1:5)
+   !WRITE (IU06,*) 'WNMEAN (WAM NATIVE): ', AKMEAN(1:5)
+   !WRITE (IU06,*) 'WNMEAN (NEW): ', WNMEAN1(1:5)
+   !WRITE (IU06,*) 'FP (WAM NATIVE): ', FP(1:5)
+   !WRITE (IU06,*) 'FP (NEW): ', FP1(1:5)
 
    !------- End tests -----------------
 
