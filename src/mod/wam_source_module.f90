@@ -42,7 +42,8 @@ USE WAM_GENERAL_MODULE, ONLY: G, PI, ZPI, DEG, ROAIR, RNUAIR, RNUAIRM, ROWATER,&
 &                             SSDSC5
 
 USE WAM_FRE_DIR_MODULE, ONLY: KL, ML, FR, CO, TH, DELTH, COSTH, SINTH, DFIM,   &
-&                             C, FMIN, FR5, FRM5, RHOWG_DFIM, INV_LOG_CO
+&                             C, FMIN, FR5, FRM5, RHOWG_DFIM, INV_LOG_CO,      &
+&                             DF, MO_TAIL, MM1_TAIL
 USE WAM_TIMOPT_MODULE,  ONLY: IDELT, SHALLOW_RUN, IPHYS, WAVE_BREAKING_RUN,    &
 &                             PHILLIPS_RUN, ISNONLIN, LCFLX
 USE WAM_FILE_MODULE,    ONLY: IU06, ITEST
@@ -309,6 +310,62 @@ INTERFACE KZEONE              !! MODIFIED BESSEL FUNCTIONS OF THE SECOND KIND,K0
 END INTERFACE
 PRIVATE KZEONE
 
+INTERFACE WAVNU2              !! SOLVE DISPERSION RELATION
+   MODULE PROCEDURE WAVNU2
+END INTERFACE
+PRIVATE WAVNU2
+
+INTERFACE IRANGE              !! GENERATE INTEGER SEQUENCE
+   MODULE PROCEDURE IRANGE
+END INTERFACE
+PRIVATE IRANGE
+
+INTERFACE TAUWINDS                !! CALCULATE NORMAL STRESS FOR ST6  
+   MODULE PROCEDURE TAUWINDS 
+END INTERFACE
+PRIVATE TAUWINDS
+
+INTERFACE W3SPR6                  !! CALCULATE MEAN PARAMS FOR ST6   
+   MODULE PROCEDURE W3SPR6 
+END INTERFACE
+PRIVATE W3SPR6
+
+! JK - UNCOMMENT WHEN IMPLEMENTED
+!INTERFACE LFACTOR                 !! FACTOR ARRAY FOR ST6
+!   MODULE PROCEDURE LFACTOR 
+!END INTERFACE
+!PRIVATE LFACTOR
+
+! JK - UNCOMMENT WHEN IMPLEMENTED
+!INTERFACE TAU_WAVE_ATMOS          !! NEG. INPUT STRESSES FOR ST6 
+!   MODULE PROCEDURE TAU_WAVE_ATMOS 
+!END INTERFACE
+!PRIVATE TAU_WAVE_ATMOS 
+
+! JK - UNCOMMENT WHEN IMPLEMENTED
+!INTERFACE W3FLX4                  !! COMPUTATION OF FLUX/STRES FOR ST6 
+!   MODULE PROCEDURE W3FLX4 
+!END INTERFACE
+!PRIVATE W3FLX4
+
+! JK - UNCOMMENT WHEN IMPLEMENTED
+!INTERFACE SINPUT_ST6              !! COMPUTATION OF INPUT SOURCE FUNCTION (ST6) 
+!   MODULE PROCEDURE SINPUT_ST6
+!END INTERFACE
+!PRIVATE SINPUT_ST6
+
+! JK - UNCOMMENT WHEN IMPLEMENTED
+!INTERFACE W3SWL6                  !! COMPUTATION OF ST6 SWELL DISSIP SOURCE FUNCTION
+!   MODULE PROCEDURE W3SWL6 
+!END INTERFACE
+!PRIVATE W3SWL6
+
+! JK - UNCOMMENT WHEN IMPLEMENTED
+!INTERFACE SDISSIP_ST6             !! COMPUTATION OF DISSIP SOURCE FUNCTION (ST6) 
+!   MODULE PROCEDURE SDISSIP_ST6        
+!END INTERFACE
+!PRIVATE SDISSIP_ST6    
+
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
 CONTAINS
@@ -414,10 +471,15 @@ REAL    :: SSOURCE(SIZE(FL3,1),SIZE(FL3,2),SIZE(FL3,3)) !! SOURCE TERMS CONTRIBU
 ! OF THE SURFACE WAVE FLUXES To THE OCEANS.
 LOGICAL, PARAMETER :: LLIMPFLX=.FALSE.
 
-! JK Local variables within IMPLSCH
 REAL    :: WN(SIZE(FL3,1),SIZE(FL3,3))   !! WAVE NUMBER
 REAL    :: CGG(SIZE(FL3,1),SIZE(FL3,3))  !! GROUP VELOCITY
 INTEGER :: ICON                          !! CONTROL COUNTER
+
+REAL    :: EMEAN1(SIZE(FL3,1))       !! MEAN WAVE ENERGY
+REAL    :: FMEAN1(SIZE(FL3,1))      !! MEAN WAVE FREQUENCY
+REAL    :: WNMEAN1(SIZE(FL3,1))      !! MEAN WAVENUMBER
+REAL    :: AMAX(SIZE(FL3,1))        !! MAX. ACTION DENSITY IN SPECTRUM
+REAL    :: FP1(SIZE(FL3,1))          !! PEAK FREQUENCY (RAD)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -472,22 +534,49 @@ IF (IPHYS .EQ. 1 ) THEN
    CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
 ELSEIF (IPHYS .EQ. 2 ) THEN
+
    ! CALCULATE GROUP VELOCITIES AND WAVE NUMBERS 
-   !CALL WAVNU2 (SI,  DEPTH,  K,  CG, 1E-7, 15, ICON) ! (WW3 CALL)
    CALL WAVNU2 ( FL3, DEPTH, WN, CGG, 1E-7, 15, ICON)
-   !WRITE (IU06,*) 'FR(:): ', FR(:)
-   !WRITE (IU06,*) 'DEPTH(1): ', DEPTH(1)
-   !WRITE (IU06,*) 'WN(1,:): ', WN(1,:)
-   !WRITE (IU06,*) 'CGG(1,:): ', CGG(1,:)
 
    ! CALCULATE MEAN PARAMETERS 
-   !CALL W3SPR6 (A, CG, WN, EMEAN, FMEAN, WNMEAN, AMAX, FP)
+   CALL W3SPR6 (FL3, CGG, WN, EMEAN1, FMEAN1, WNMEAN1, AMAX, FP1)
 
 !   CALL SINPUT_ST6 (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 !&                   INDEP, LLWS)
+
    ! JK Temporary proxy for ST6 
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
+
+   !--------- Tests --------------------
+   ! WAVENU2
+   !WRITE (IU06,*) 'FR(:): ', FR(:)
+   !WRITE (IU06,*) 'DEPTH(1): ', DEPTH(1)
+   !WRITE (IU06,*) 'WN(1,:): ', WN(1,:)
+
+   ! IRANGE
+   !WRITE (IU06,*) 'IRANGE(1,10,1): ', IRANGE(1,10,1)
+
+   ! TAUWINDS, JK - HAVE TO TEST WITHIN CONTEXT OF LFACTOR
+   !WRITE (IU06,*)
+   !'TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz):',TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz)
+
+   ! W3SPR6  
+   WRITE (IU06,*) 'EMEAN1(:): ', EMEAN1(1:5)
+
+   WRITE (IU06,*) 'FMEAN (WAM NATIVE): ', FMEAN(1:5)
+   WRITE (IU06,*) 'FMEAN (NEW): ', FMEAN1(1:5)
+
+   WRITE (IU06,*) 'WN1 MEAN (WAM NATIVE): ', AKMEAN(1:5)
+   WRITE (IU06,*) 'WN2 MEAN (WAM NATIVE): ', XKMEAN(1:5)
+   WRITE (IU06,*) 'WNMEAN (NEW): ', WNMEAN1(1:5)
+
+   WRITE (IU06,*) 'AMAX(:): ', AMAX(1:5)
+   WRITE (IU06,*) 'FP1(:): ', FP1(1:5)
+
+   !------- End tests -----------------
+
+
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
@@ -4324,17 +4413,6 @@ REAL    :: K, CG, SIG, H
               K = W0*W0/G
             END IF
 
-          !K =  W0*W0/G !JK
-
-          !WRITE (IU06,*) 'M= ',M
-          !WRITE (IU06,*) 'FR(M)= ', FR(M)
-          !WRITE (IU06,*) 'SIG= ',SIG
-          !WRITE (IU06,*) 'W0= ', W0
-          !WRITE (IU06,*) 'K= ', K
-
-          !WN(IJ,M)  = K          ! JK - hack valid for deep water only
-          !CGG(IJ,M) = W0/K * 0.5 ! JK - hack valid for deep water only
-
 !
 !         Refinement :
 !
@@ -4388,5 +4466,164 @@ REAL    :: K, CG, SIG, H
 END SUBROUTINE WAVNU2
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE W3SPR6 ( F, CGG, WN, EMEAN, FMEAN, WNMEAN, AMAX, FP)
+
+! ---------------------------------------------------------------------------- !
+!  1. Purpose :
+!     Calculation mean wave parameters for ST6
+!
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+REAL,    INTENT(IN)    :: F (:, :, :)    !! SPECTRUM.
+REAL,    INTENT(IN)    :: WN (:,:)       !! WAVE NUMBER
+REAL,    INTENT(IN)    :: CGG(:,:)       !! GROUP VELOCITY
+
+REAL,    INTENT(OUT)   :: EMEAN(:)       !! MEAN WAVE ENERGY
+REAL,    INTENT(OUT)   :: FMEAN(:)       !! MEAN WAVE FREQUENCY
+REAL,    INTENT(OUT)   :: WNMEAN(:)      !! MEAN WAVENUMBER
+REAL,    INTENT(OUT)   :: AMAX(:)        !! MAX. ACTION DENSITY IN SPECTRUM
+REAL,    INTENT(OUT)   :: FP(:)          !! PEAK FREQUENCY (RAD)
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------
+
+INTEGER                 :: IJ, IMAX
+REAL                    :: EB(SIZE(F,3)), SIG(SIZE(F,3)),DDEN(SIZE(F,3))
+REAL                    :: EBAND, TPIINV
+REAL, PARAMETER         :: HSMIN = 0.05
+
+! ---------------------------------------------------------------------------- !
+
+! 0.  Init.  --------------------------------------------------------- /
+      TPIINV = 1.0/ZPI
+
+      ! JK - MIGHT HAVE TO DO IN LOOP M=1:SIZE(F,3)
+      SIG(:)  = ZPI*FR(1:SIZE(F,3))
+      DDEN(:) = ZPI*DF(1:SIZE(F,3))*DELTH*SIG(:)
+
+      ! LOOP OVER LOCATIONS
+      DO IJ = 1,SIZE(F,1)
+
+! 1.    Integrate over directions -------------------------------------- /
+        EB(:)   = SUM(F(IJ,:,:),1) * DDEN(:) / CGG(IJ,:)
+        AMAX(IJ) = MAXVAL(F(IJ,:,:))
+!
+! 2.    Integrate over wavenumbers ------------------------------------- /
+        EMEAN(IJ)  = SUM(EB(:))
+        FMEAN(IJ)  = SUM(EB(:) / SIG(:))
+        WNMEAN(IJ) = SUM(EB(:) / SQRT(WN(IJ,:)))
+!
+! 3.    Add tail beyond discrete spectrum and get mean pars ------------ /
+!       ( DTH * SIG absorbed in FTxx )
+        EBAND  = EB(ML) / DDEN(ML)
+        EMEAN(IJ)  = EMEAN(IJ)  + EBAND * MO_TAIL*ZPI*SIG(ML)
+        FMEAN(IJ)  = FMEAN(IJ)  + EBAND * MM1_TAIL*SIG(ML)
+        WNMEAN(IJ) = WNMEAN(IJ) + EBAND * MM1_TAIL*SQRT(G)*SIG(ML)
+!
+! 4.    Final processing
+        FMEAN(IJ) = TPIINV * EMEAN(IJ) / MAX(1.0E-7, FMEAN(IJ))
+        WNMEAN(IJ) = ( EMEAN(IJ) / MAX(1.0E-7,WNMEAN(IJ)) )**2
+!
+! 5.    Determine peak frequency using a weighted integral ------------- /
+!       Young (1999) p239: integrate f F**4 df / integrate F**4 df ----- /
+!       TODO: keep in mind that **fp** calculated in this way may not
+!             work under mixing (wind-sea and swell) sea states (QL)
+        FP(IJ)    = 0.0
+!
+        IF (4.0*SQRT(EMEAN(IJ)) .GT. HSMIN) THEN
+           EB(:) = SUM(F(IJ,:,:),1) * SIG(:) /CGG(IJ,:) * DELTH
+           FP(IJ) = SUM(SIG(:) * EB(:)**4 * ZPI*DF(:)) / SUM(EB(:)**4 * ZPI*DF(:))
+           FP(IJ) = FP(IJ) * TPIINV
+        END IF
+!
+
+      END DO
+      ! END LOOP OVER LOC
+
+      RETURN
+
+END SUBROUTINE W3SPR6
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+FUNCTION IRANGE(X0,X1,DX) RESULT(IX)
+
+! ---------------------------------------------------------------------------- !
+!  1. Purpose :
+!
+!         Generate a sequence of linear-spaced integer numbers.
+!         Used for instance array addressing (indexing).
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+INTEGER,              INTENT(IN)     :: X0, X1, DX
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------
+
+INTEGER, ALLOCATABLE                 :: IX(:)
+INTEGER                              :: N, I
+
+! ---------------------------------------------------------------------------- !
+
+      N = INT(REAL(X1-X0)/REAL(DX))+1
+      ALLOCATE(IX(N))
+      DO I = 1, N
+         IX(I) = X0+ (I-1)*DX
+      END DO
+
+END FUNCTION IRANGE
+ 
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+FUNCTION TAUWINDS(SDENSIG,CINV,DSII) RESULT(TAU_WINDS)
+
+! ---------------------------------------------------------------------------- !
+!  1. Purpose :
+!
+!      Wind stress (tau) computation from wind-momentum-input
+!      function which can be obtained from wind-energy-input (Sin).
+!
+!                            / FRMAX
+!      tau = g * rho_water * | Sin(f)/C(f) df
+!                            /
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+REAL, INTENT(IN)  :: SDENSIG(:)    ! Sin(sigma) in [m2/rad-Hz]
+REAL, INTENT(IN)  :: CINV(:)       ! inverse phase speed
+REAL, INTENT(IN)  :: DSII(:)       ! freq. bandwidths in [radians]
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------
+
+REAL              :: TAU_WINDS     ! wind stress
+
+! ---------------------------------------------------------------------------- !
+
+      TAU_WINDS = G * ROWATER * SUM(SDENSIG*CINV*DSII)
+
+
+END FUNCTION TAUWINDS
+
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
 
 END MODULE WAM_SOURCE_MODULE

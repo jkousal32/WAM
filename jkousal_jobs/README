@@ -38,7 +38,7 @@ qsub jpnetcdf
 # ------------------- View outputs --------------
 
 # See recent log files
-v /work/bu1213/b381438/WAM/tempsg/logfile.0
+v /pf/b/b381438/WAM/dayfiles/wam_prot_coarse_JAN
 lr wam.*
 
 # NetCDF file
