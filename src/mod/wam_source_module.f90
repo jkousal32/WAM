@@ -326,11 +326,6 @@ INTERFACE TAUWINDS                !! CALCULATE NORMAL STRESS FOR ST6
 END INTERFACE
 PRIVATE TAUWINDS
 
-INTERFACE W3SPR6                  !! CALCULATE MEAN PARAMS FOR ST6   
-   MODULE PROCEDURE W3SPR6 
-END INTERFACE
-PRIVATE W3SPR6
-
 INTERFACE LFACTOR                 !! FACTOR ARRAY FOR ST6
    MODULE PROCEDURE LFACTOR 
 END INTERFACE
@@ -474,13 +469,6 @@ REAL    :: WN(SIZE(FL3,1),SIZE(FL3,3))   !! WAVE NUMBER
 REAL    :: CGG(SIZE(FL3,1),SIZE(FL3,3))  !! GROUP VELOCITY
 INTEGER :: ICON                          !! CONTROL COUNTER
 
-! FOR W3SPR6
-REAL    :: EMEAN1(SIZE(FL3,1))       !! MEAN WAVE ENERGY
-REAL    :: FMEAN1(SIZE(FL3,1))      !! MEAN WAVE FREQUENCY
-REAL    :: WNMEAN1(SIZE(FL3,1))      !! MEAN WAVENUMBER
-REAL    :: AMAX(SIZE(FL3,1))        !! MAX. ACTION DENSITY IN SPECTRUM
-REAL    :: FP1(SIZE(FL3,1))          !! PEAK FREQUENCY (RAD)
-
 ! FOR PEAK FREQ
 REAL :: F1D(SIZE(FL3,1),SIZE(FL3,3))    !! FREQUENCY SPECTRA
 REAL :: F1A(SIZE(FL3,1),SIZE(FL3,2))    !! DIRECTIONAL SPECTRA
@@ -618,17 +606,6 @@ ELSEIF (IPHYS .EQ. 2 ) THEN
    ! TAUWINDS, JK - HAVE TO TEST WITHIN CONTEXT OF LFACTOR
    !WRITE (IU06,*)
    !'TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz):',TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz)
-
-   ! W3SPR6  
-   !CALL W3SPR6 (FL3, CGG, WN, EMEAN1, FMEAN1, WNMEAN1, AMAX, FP1)
-   !WRITE (IU06,*) 'EMEAN (WAM NATIVE): ', EMEAN(1:5)
-   !WRITE (IU06,*) 'EMEAN (NEW): ', EMEAN1(1:5)
-   !WRITE (IU06,*) 'FMEAN (WAM NATIVE): ', FMEAN(1:5)
-   !WRITE (IU06,*) 'FMEAN (NEW): ', FMEAN1(1:5)
-   !WRITE (IU06,*) 'WNMEAN (WAM NATIVE): ', AKMEAN(1:5)
-   !WRITE (IU06,*) 'WNMEAN (NEW): ', WNMEAN1(1:5)
-   !WRITE (IU06,*) 'FP (WAM NATIVE): ', FP(1:5)
-   !WRITE (IU06,*) 'FP (NEW): ', FP1(1:5)
 
    !------- End tests -----------------
 
@@ -4772,6 +4749,10 @@ SUBROUTINE SINPUT_ST6 (F, CGG, WN, UABS, USTAR, USDIR, ROAIRN, TAUW, TAUNW,    &
 !      Young and Banner (Donelan et al ,2006) following the implementation
 !      by Rogers et al. (2012).
 !
+!  2. Method :
+!
+!      Sin = B * E
+!
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -4966,6 +4947,15 @@ SUBROUTINE TAU_WAVE_ATMOS(S, CINV, SIG, DSII, TAUNWX, TAUNWY )
 !     that is the stress from the waves to the atmosphere. Relevant
 !     in the case of opposing winds.
 !
+!  2. Method :
+!     1) If required, extend resolved part of the spectrum to 10Hz using
+!        an approximation for the spectral slope at the high frequency
+!        limit: Sin(F) prop. F**(-2) and for E(F) prop. F**(-5).
+!     2) Calculate stresses:
+!        stress components (x,y):      /10Hz
+!            TAUNW_X,Y = GRAV * DWAT * | [SinX,Y(F)]/C(F) dF
+!                                      /
+!
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -5051,91 +5041,6 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 
 
 END SUBROUTINE TAU_WAVE_ATMOS
-
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
-
-SUBROUTINE W3SPR6 ( F, CGG, WN, EMEAN, FMEAN, WNMEAN, AMAX, FP)
-
-! ---------------------------------------------------------------------------- !
-!  1. Purpose :
-!     Calculation mean wave parameters for ST6
-!
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     INTERFACE VARIABLES.                                                     !
-!     --------------------                                                     !
-
-REAL,    INTENT(IN)    :: F (:, :, :)    !! SPECTRUM.
-REAL,    INTENT(IN)    :: WN (:,:)       !! WAVE NUMBER
-REAL,    INTENT(IN)    :: CGG(:,:)       !! GROUP VELOCITY
-
-REAL,    INTENT(OUT)   :: EMEAN(:)       !! MEAN WAVE ENERGY
-REAL,    INTENT(OUT)   :: FMEAN(:)       !! MEAN WAVE FREQUENCY
-REAL,    INTENT(OUT)   :: WNMEAN(:)      !! MEAN WAVENUMBER
-REAL,    INTENT(OUT)   :: AMAX(:)        !! MAX. ACTION DENSITY IN SPECTRUM
-REAL,    INTENT(OUT)   :: FP(:)          !! PEAK FREQUENCY (RAD)
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     LOCAL VARIABLES.                                                         !
-!     ----------------
-
-INTEGER                 :: IJ, IMAX
-REAL                    :: EB(SIZE(F,3)), SIG(SIZE(F,3)),DDEN(SIZE(F,3))
-REAL                    :: EBAND, TPIINV
-REAL, PARAMETER         :: HSMIN = 0.05
-
-! ---------------------------------------------------------------------------- !
-
-! 0.  Init.  --------------------------------------------------------- /
-      TPIINV = 1.0/ZPI
-
-      ! JK - MIGHT HAVE TO DO IN LOOP M=1:SIZE(F,3)
-      SIG(:)  = ZPI*FR(1:SIZE(F,3))
-      DDEN(:) = ZPI*DF(1:SIZE(F,3))*DELTH*SIG(:)
-
-      ! LOOP OVER LOCATIONS
-      DO IJ = 1,SIZE(F,1)
-
-! 1.    Integrate over directions -------------------------------------- /
-        EB(:)   = SUM(F(IJ,:,:),1) * DDEN(:) / CGG(IJ,:)
-        AMAX(IJ) = MAXVAL(F(IJ,:,:))
-!
-! 2.    Integrate over wavenumbers ------------------------------------- /
-        EMEAN(IJ)  = SUM(EB(:))
-        FMEAN(IJ)  = SUM(EB(:) / SIG(:))
-        WNMEAN(IJ) = SUM(EB(:) / SQRT(WN(IJ,:)))
-!
-! 3.    Add tail beyond discrete spectrum and get mean pars ------------ /
-!       ( DTH * SIG absorbed in FTxx )
-        EBAND  = EB(ML) / DDEN(ML)
-        EMEAN(IJ)  = EMEAN(IJ)  + EBAND * MO_TAIL*ZPI*SIG(ML)
-        FMEAN(IJ)  = FMEAN(IJ)  + EBAND * MM1_TAIL*SIG(ML)
-        WNMEAN(IJ) = WNMEAN(IJ) + EBAND * MM1_TAIL*SQRT(G)*SIG(ML)
-!
-! 4.    Final processing
-        FMEAN(IJ) = TPIINV * EMEAN(IJ) / MAX(1.0E-7, FMEAN(IJ))
-        WNMEAN(IJ) = ( EMEAN(IJ) / MAX(1.0E-7,WNMEAN(IJ)) )**2
-!
-! 5.    Determine peak frequency using a weighted integral ------------- /
-!       Young (1999) p239: integrate f F**4 df / integrate F**4 df ----- /
-!       TODO: keep in mind that **fp** calculated in this way may not
-!             work under mixing (wind-sea and swell) sea states (QL)
-        FP(IJ)    = 0.0
-!
-        IF (4.0*SQRT(EMEAN(IJ)) .GT. HSMIN) THEN
-           EB(:) = SUM(F(IJ,:,:),1) * SIG(:) /CGG(IJ,:) * DELTH
-           FP(IJ) = SUM(SIG(:) * EB(:)**4 * ZPI*DF(:)) / SUM(EB(:)**4 *ZPI*DF(:))
-           FP(IJ) = FP(IJ) * TPIINV
-        END IF
-!
-
-      END DO
-      ! END LOOP OVER LOC
-
-      RETURN
-
-END SUBROUTINE W3SPR6
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
