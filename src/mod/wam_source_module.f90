@@ -336,11 +336,10 @@ INTERFACE TAU_WAVE_ATMOS          !! NEG. INPUT STRESSES FOR ST6
 END INTERFACE
 PRIVATE TAU_WAVE_ATMOS 
 
-! JK - UNCOMMENT WHEN IMPLEMENTED
-!INTERFACE W3FLX4                  !! COMPUTATION OF FLUX/STRES FOR ST6 
-!   MODULE PROCEDURE W3FLX4 
-!END INTERFACE
-!PRIVATE W3FLX4
+INTERFACE W3FLX4                  !! COMPUTATION OF FLUX/STRESS FOR ST6 
+   MODULE PROCEDURE W3FLX4 
+END INTERFACE
+PRIVATE W3FLX4
 
 INTERFACE SINPUT_ST6              !! COMPUTATION OF INPUT SOURCE FUNCTION (ST6) 
    MODULE PROCEDURE SINPUT_ST6
@@ -353,11 +352,10 @@ PRIVATE SINPUT_ST6
 !END INTERFACE
 !PRIVATE W3SWL6
 
-! JK - UNCOMMENT WHEN IMPLEMENTED
-!INTERFACE SDISSIP_ST6             !! COMPUTATION OF DISSIP SOURCE FUNCTION (ST6) 
-!   MODULE PROCEDURE SDISSIP_ST6        
-!END INTERFACE
-!PRIVATE SDISSIP_ST6    
+INTERFACE SDISSIP_ST6             !! COMPUTATION OF DISSIP SOURCE FUNCTION (ST6) 
+   MODULE PROCEDURE SDISSIP_ST6        
+END INTERFACE
+PRIVATE SDISSIP_ST6    
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
@@ -483,6 +481,10 @@ REAL :: SIG_TH(SIZE(FL3,1))            !! RELATIVE WIDTH IN DIRECTION
 REAL :: TAUNW(SIZE(FL3,1))       ! TOTAL NEGATIVE WAVE-SUPPORTED STRESS
 REAL :: TAUW_DUMMY(SIZE(FL3,1))  ! TOTAL WAVE-SUPPORTED STRESS (DUMMY OUTPUT)
 
+! FOR W3FLX4
+REAL :: CD(SIZE(FL3,1))           ! DRAG COEFFICIENT
+REAL :: USTARD(SIZE(FL3,1))       ! FRICTION VELOCITY DIRECTION
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     1. CALCULATE ROUGHNESS LENGTH AND FRICTION VELOCITIES.                   !
@@ -577,7 +579,7 @@ END IF
 ! JK     OVERWRITE TAUW PRODUCED BY SINPUT_ST6
 
 IF (IPHYS .EQ. 2 ) THEN
-   CALL AIRSEA (U10, TAUW, USTAR, Z0) ! JK: SUB THIS OUT FOR W3FLX4 (CALCULATES USTAR+Z0)
+   CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
 ELSE
    CALL AIRSEA (U10, TAUW, USTAR, Z0) 
 ENDIF
@@ -621,7 +623,7 @@ CALL FRCUTINDEX (FMEAN, FMEANWS, USTAR, MIJ)
 ! re-evalute the input
 IF (IPHYS .EQ. 2 ) THEN
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP) ! DUMMY OUTPUT TAUW
-   CALL AIRSEA (U10, TAUW, USTAR, Z0) ! JK: SUB THIS OUT FOR W3FLX4
+   CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
    CALL IMPHFTAIL (MIJ, INDEP, FL3) ! JK: TAIL PRESCRIPTION WILL HAVE TO BE MODIFIED FOR ST6
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) 
@@ -651,9 +653,10 @@ ENDIF
 IF (IPHYS .EQ. 1 ) THEN
   CALL SDISSIP_ARD (FL3, SL, FL, USTAR, UDIR, ROAIRN, INDEP)
 ELSEIF (IPHYS .EQ. 2 ) THEN
-  !CALL SDISSIP_ST6 (FL3, SL, FL, USTAR, UDIR, ROAIRN, INDEP)
-   ! JK Temporary proxy for ST6 
-  CALL SDISSIP (FL3, SL, FL, USTAR, UDIR, ROAIRN, INDEP)
+  CALL SDISSIP_ST6 (FL3, CGG, WN, SL, FL )
+  !IF (SWL6S6) THEN
+  !  CALL W3SWL6 ( SPEC, CG1, WN1, VSWL, VDWL )
+  !END IF
 ELSE
   CALL SDISSIP     (FL3, SL, FL, EMEAN, F1MEAN, XKMEAN, INDEP)
 ENDIF
@@ -4739,7 +4742,6 @@ END SUBROUTINE LFACTOR
 
 SUBROUTINE SINPUT_ST6 (F, CGG, WN, UABS, USTAR, USDIR, ROAIRN, TAUW, TAUNW,    &
 &                      SL, SPOS, FL )
-! JK: MIGHT NEED TO ADD SPOS OUTPUT (ONLY NEEDED FOR STRESSO FOR FLUX CALC)
 
 ! ----------------------------------------------------------------------
 !
@@ -4937,6 +4939,165 @@ END SUBROUTINE SINPUT_ST6
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
+SUBROUTINE SDISSIP_ST6 (F, CGG, WN, SL, FL )
+
+! ----------------------------------------------------------------------
+!
+!  1. Purpose :
+!
+!      Observation-based source term for dissipation after Babanin et al.
+!      (2010) following the implementation by Rogers et al. (2012). The
+!      dissipation function Sds accommodates an inherent breaking term T1
+!      and an additional cumulative term T2 at all frequencies above the
+!      peak. The forced dissipation term T2 is an integral that grows
+!      toward higher frequencies and dominates at smaller scales
+!      (Babanin et al. 2010).
+!
+!      References:
+!       Babanin et al. 2010: JPO 40(4), 667-683
+!       Rogers  et al. 2012: JTECH 29(9) 1329-1346
+!
+!  2. Method :
+!
+!      Sds = (T1 + T2) * E
+!
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+REAL,    INTENT(IN)    :: F (:, :, :)    !! SPECTRUM.
+REAL,    INTENT(IN)    :: CGG(:,:)       !! GROUP VELOCITY
+REAL,    INTENT(IN)    :: WN (:,:)       !! WAVE NUMBER
+
+REAL,    INTENT(OUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY
+REAL,    INTENT(OUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
+                                         !! DERIVATIVE
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------   
+
+INTEGER                :: IJ, M
+INTEGER                :: IK, ITH, IKN(SIZE(F,3))
+
+REAL,    PARAMETER   :: SDS6A1  = 4.75E-6  ! ST6 PARAM
+REAL,    PARAMETER   :: SDS6A2  = 7.00E-5  ! ST6 PARAM
+INTEGER, PARAMETER   :: SDS6P1  = 4        ! ST6 PARAM
+INTEGER, PARAMETER   :: SDS6P2  = 4        ! ST6 PARAM
+LOGICAL, PARAMETER   :: SDS6ET  = .TRUE.   ! ST6 PARAM
+
+REAL              :: FREQ(SIZE(F,3))     ! frequencies [Hz]
+REAL              :: SIG(SIZE(F,3))     ! frequencies [RAD]
+REAL              :: DFII(SIZE(F,3))     ! frequency bandwiths [Hz]
+REAL              :: ANAR(SIZE(F,3))     ! directional narrowness
+REAL              :: BNT          ! empirical constant for
+                                        ! wave breaking probability
+REAL              :: EDENS (SIZE(F,3))   ! spectral density E(f)
+REAL              :: ETDENS(SIZE(F,3))   ! threshold spec. density ET(f)
+REAL              :: EXDENS(SIZE(F,3))   ! excess spectral density EX(f)
+REAL              :: NEXDENS(SIZE(F,3))  ! normalised excess spectral density
+REAL              :: T1(SIZE(F,3))       ! inherent breaking term
+REAL              :: T2(SIZE(F,3))       ! forced dissipation term
+REAL              :: T12(SIZE(F,3))      ! = T1+T2 or combined dissipation
+REAL              :: ADF(SIZE(F,3)), XFAC, EDENSMAX ! temp. variables
+
+REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))  :: S, D, A    
+
+
+INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
+INTEGER :: NTH   ! NUMBER OF DIRS , SAME AS KL 
+INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS    
+
+! ----------------------------------------------------------------------
+
+      NTH   = SIZE(F,2)  ! NUMBER OF DIRS , SAME AS KL
+      NK    = SIZE(F,3)  ! NUMBER OF FREQS, SAME AS ML 
+      NSPEC = NK * NTH   ! NUMBER OF SPECTRAL BINS
+
+      DO M = 1,SIZE(F,3)
+        SIG(M)  = ZPI*FR(M)
+        DFII(M) = DF(M)
+      END DO
+
+      ! LOOP OVER LOCATIONS
+      DO IJ = 1,SIZE(F,1)
+
+
+!/ 0) --- Initialize essential parameters ---------------------------- /
+        A       = RESHAPE(F(IJ,:,:),(/NSPEC/))  ! ACTION DENSITY SPECTRUM
+        IKN     = IRANGE(1,NSPEC,NTH)    ! Index vector for elements of 1,
+!                                      ! 2,..., NK such that for example
+!                                      ! SIG(1:NK) = SIG2(IKN).
+        FREQ    = FR(1:NK)
+        ANAR    = 1.0
+        BNT     = 0.035**2
+        T1      = 0.0
+        T2      = 0.0
+        NEXDENS = 0.0
+!
+!/ 1) --- Calculate threshold spectral density, spectral density, and
+!/        the level of exceedence EXDENS(f) -------------------------- /
+        ETDENS  = ( ZPI * BNT ) / ( ANAR * CGG(IJ,:) * WN(IJ,:)**3 )
+        EDENS   = SUM(RESHAPE(A,(/ NTH,NK /)),1) * ZPI * SIG * DELTH / CGG(IJ,:)  !E(f)
+        EXDENS  = MAX(0.0,EDENS-ETDENS)
+!
+!/    --- normalise by a generic spectral density -------------------- /
+        IF (SDS6ET) THEN                ! ww3_grid.inp: &SDS6 SDSET = T or F
+           NEXDENS = EXDENS / ETDENS    ! normalise by threshold spectral density
+        ELSE                            ! normalise by spectral density
+           EDENSMAX = MAXVAL(EDENS)*1E-5
+           IF (ALL(EDENS .GT. EDENSMAX)) THEN
+              NEXDENS = EXDENS / EDENS
+           ELSE
+              DO IK = 1,NK
+                 IF (EDENS(IK) .GT. EDENSMAX) NEXDENS(IK) = EXDENS(IK) / EDENS(IK)
+              END DO
+           END IF
+        END IF
+!
+!/ 2) --- Calculate inherent breaking component T1 ------------------- /
+        T1 = SDS6A1 * ANAR * FREQ * (NEXDENS**SDS6P1)
+!
+!/ 3) --- Calculate T2, the dissipation of waves induced by
+!/        the breaking of longer waves T2 ---------------------------- /
+        ADF    = ANAR * (NEXDENS**SDS6P2)
+        XFAC   = (1.0-1.0/CO)/(CO-1.0/CO)
+        DO IK = 1,NK
+!          IF (IK .GT. 1) DFII(IK) = DFII(IK) * XFAC
+           IF (IK .GT. 1 .AND. IK .LT. NK) DFII(IK) = DFII(IK) * XFAC
+           T2(IK) = SDS6A2 * SUM( ADF(1:IK)*DFII(1:IK) )
+        END DO
+
+!/ 4) --- Sum up dissipation terms and apply to all directions ------- /
+        T12 = -1.0 * ( MAX(0.0,T1)+MAX(0.0,T2) )
+        DO ITH = 1, NTH
+           D(IKN+ITH-1) = T12
+        END DO
+!
+        S = D * A
+!
+!/ 5) --- Diagnostic output (switch !/T6) ---------------------------- /
+!/T6     CALL STME21 ( TIME , IDTIME )
+!/T6     WRITE (NDST,270) 'T1*E',IDTIME(1:19),(T1*EDENS)
+!/T6     WRITE (NDST,270) 'T2*E',IDTIME(1:19),(T2*EDENS)
+!/T6     WRITE (NDST,271) SUM(SUM(RESHAPE(S,(/ NTH,NK /)),1)*DDEN/CG)
+!
+!/T6     270 FORMAT (' TEST W3SDS6 : ',A,'(',A,')',':',70E11.3)
+!/T6     271 FORMAT (' TEST W3SDS6 : Total SDS  =',E13.5)
+
+        SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /))
+        FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /))
+
+      END DO
+      ! END LOOP OVER LOC
+
+END SUBROUTINE SDISSIP_ST6
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+
 SUBROUTINE TAU_WAVE_ATMOS(S, CINV, SIG, DSII, TAUNWX, TAUNWY )
 
 ! ----------------------------------------------------------------------
@@ -5041,6 +5202,78 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 
 
 END SUBROUTINE TAU_WAVE_ATMOS
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE W3FLX4 ( ZWND, U10, U10D, UST, USTD, Z0, CD )
+
+! ----------------------------------------------------------------------
+!
+!  1. Purpose :
+!
+!     Flux/stress computations according to Hwang (JTECH, 2011)
+!
+!  2. Method :
+!
+!     CD    = 1E-4 ( -0.016 U10**2 + 0.967U10 + 8.058)
+!     USTAR = U10 * SQRT( U10 )
+!
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+REAL,    INTENT(IN)    :: ZWND           !! WIND HEIGHT. JK XNLEV ?
+REAL,    INTENT(IN)    :: U10  (:)       !! WIND SPEED AT XNLEV
+REAL,    INTENT(IN)    :: U10D (:)       !! WIND DIRECTION.
+
+REAL,    INTENT(OUT)   :: UST (:)     !! FRICTION VELOCITY.
+REAL,    INTENT(OUT)   :: USTD (:)    !! FRICTION VELOCITY DIRECTION
+REAL,    INTENT(OUT)   :: Z0 (:)      !! Z0 IN PROFILE LAW, ROUGHNESS LENGTH
+REAL,    INTENT(OUT)   :: CD (:)      !! DRAG COEFFICIENT 
+
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------   
+
+INTEGER :: IJ
+REAL, PARAMETER   :: FLX4A0  = 1.0  ! CDFAC, WIND SCALING, ~BETAMAX JK ?
+
+! ----------------------------------------------------------------------
+
+! 1.  Tests ---------------------------------------------------------- *
+!
+      IF ( ABS(ZWND-10.) .GT. 0.01 ) THEN
+        WRITE (IU06,*) 'WIND HEIGHT SHOULD BE 10M, BUT IS Z=', ZWND
+        STOP
+      END IF
+!
+! 2.  Computation ---------------------------------------------------- *
+!
+!     To prevent the drag coefficient from dropping to zero at extreme
+!     wind speeds, we use a simple modification UST = 2.026 m/s for
+!     U10 greater than 50.33 m/s.
+!
+      ! LOOP OVER LOCATIONS
+      DO IJ = 1,SIZE(U10)
+
+        IF (U10(IJ) .GE. 50.33) THEN
+           UST(IJ) = 2.026 * SQRT(FLX4A0)
+           CD(IJ)  = (UST(IJ)/U10(IJ))**2
+        ELSE
+           CD(IJ)  = FLX4A0 * ( 8.058 + 0.967*U10(IJ) - 0.016*U10(IJ)**2 ) * 1E-4
+           UST(IJ) = U10(IJ) * SQRT(CD(IJ))
+        END IF
+
+        Z0(IJ)     = ZWND * EXP ( -0.4 / SQRT(CD(IJ)) )
+        USTD(IJ)   = U10D(IJ)
+
+      END DO
+      ! END LOOP OVER LOC
+
+END SUBROUTINE W3FLX4
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
