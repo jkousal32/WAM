@@ -331,17 +331,15 @@ INTERFACE W3SPR6                  !! CALCULATE MEAN PARAMS FOR ST6
 END INTERFACE
 PRIVATE W3SPR6
 
-! JK - UNCOMMENT WHEN IMPLEMENTED
-!INTERFACE LFACTOR                 !! FACTOR ARRAY FOR ST6
-!   MODULE PROCEDURE LFACTOR 
-!END INTERFACE
-!PRIVATE LFACTOR
+INTERFACE LFACTOR                 !! FACTOR ARRAY FOR ST6
+   MODULE PROCEDURE LFACTOR 
+END INTERFACE
+PRIVATE LFACTOR
 
-! JK - UNCOMMENT WHEN IMPLEMENTED
-!INTERFACE TAU_WAVE_ATMOS          !! NEG. INPUT STRESSES FOR ST6 
-!   MODULE PROCEDURE TAU_WAVE_ATMOS 
-!END INTERFACE
-!PRIVATE TAU_WAVE_ATMOS 
+INTERFACE TAU_WAVE_ATMOS          !! NEG. INPUT STRESSES FOR ST6 
+   MODULE PROCEDURE TAU_WAVE_ATMOS 
+END INTERFACE
+PRIVATE TAU_WAVE_ATMOS 
 
 ! JK - UNCOMMENT WHEN IMPLEMENTED
 !INTERFACE W3FLX4                  !! COMPUTATION OF FLUX/STRES FOR ST6 
@@ -349,11 +347,10 @@ PRIVATE W3SPR6
 !END INTERFACE
 !PRIVATE W3FLX4
 
-! JK - UNCOMMENT WHEN IMPLEMENTED
-!INTERFACE SINPUT_ST6              !! COMPUTATION OF INPUT SOURCE FUNCTION (ST6) 
-!   MODULE PROCEDURE SINPUT_ST6
-!END INTERFACE
-!PRIVATE SINPUT_ST6
+INTERFACE SINPUT_ST6              !! COMPUTATION OF INPUT SOURCE FUNCTION (ST6) 
+   MODULE PROCEDURE SINPUT_ST6
+END INTERFACE
+PRIVATE SINPUT_ST6
 
 ! JK - UNCOMMENT WHEN IMPLEMENTED
 !INTERFACE W3SWL6                  !! COMPUTATION OF ST6 SWELL DISSIP SOURCE FUNCTION
@@ -472,19 +469,19 @@ REAL    :: SSOURCE(SIZE(FL3,1),SIZE(FL3,2),SIZE(FL3,3)) !! SOURCE TERMS CONTRIBU
 ! OF THE SURFACE WAVE FLUXES To THE OCEANS.
 LOGICAL, PARAMETER :: LLIMPFLX=.FALSE.
 
-! JK FOR WAVNU2
+! FOR WAVNU2
 REAL    :: WN(SIZE(FL3,1),SIZE(FL3,3))   !! WAVE NUMBER
 REAL    :: CGG(SIZE(FL3,1),SIZE(FL3,3))  !! GROUP VELOCITY
 INTEGER :: ICON                          !! CONTROL COUNTER
 
-! JK FOR W3SPR6
+! FOR W3SPR6
 REAL    :: EMEAN1(SIZE(FL3,1))       !! MEAN WAVE ENERGY
 REAL    :: FMEAN1(SIZE(FL3,1))      !! MEAN WAVE FREQUENCY
 REAL    :: WNMEAN1(SIZE(FL3,1))      !! MEAN WAVENUMBER
 REAL    :: AMAX(SIZE(FL3,1))        !! MAX. ACTION DENSITY IN SPECTRUM
 REAL    :: FP1(SIZE(FL3,1))          !! PEAK FREQUENCY (RAD)
 
-! JK FOR PEAK FREQ
+! FOR PEAK FREQ
 REAL :: F1D(SIZE(FL3,1),SIZE(FL3,3))    !! FREQUENCY SPECTRA
 REAL :: F1A(SIZE(FL3,1),SIZE(FL3,2))    !! DIRECTIONAL SPECTRA
 REAL :: THMAX(SIZE(FL3,1))              !! MAX FREQ SPECTRA
@@ -493,6 +490,10 @@ REAL :: XMAX(SIZE(FL3,1))              !! MAX FREQ SPECTRA
 REAL :: SIG_OM(SIZE(FL3,1))            !! RELATIVE WIDTH IN FREQUENCY
 REAL :: YMAX(SIZE(FL3,1))              !! MAX DIRECTIONAL SPECTRUM
 REAL :: SIG_TH(SIZE(FL3,1))            !! RELATIVE WIDTH IN DIRECTION
+
+! FOR SINPUT_ST6
+REAL :: TAUNW(SIZE(FL3,1))       ! TOTAL NEGATIVE WAVE-SUPPORTED STRESS
+REAL :: TAUW_DUMMY(SIZE(FL3,1))  ! TOTAL WAVE-SUPPORTED STRESS (DUMMY OUTPUT)
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -558,22 +559,50 @@ END IF
 !                                                                          !
 !     3. COMPUTATION OF SOURCE FUNCTIONS AND DERIVATIVES.                  !
 !        ------------------------------------------------                  !
-CALL AIRSEA (U10, TAUW, USTAR, Z0)
+
+! JK: SHOULD WE USE ITERATION OF INPUT FOR ST6?
+! JK   - DOES ST4 USE IT IN WW3? YES, FOR REDUCTION OF CD 
+! JK   - ST6 USES NO ITERATION IN WW3 -> DO NOT ITERATE HERE
+
+! JK: WHAT NEEDS ITERATION, WHAT DOESN'T:
+! JK   - AIRSEA:  CALC USTAR, USED FOR STRESSO+FRCUTINDEX+WNFLUXES(+SINPUT+SDISSIP)
+! JK   - STRESSO: CALC PHIAW, USED FOR                    WNFLUXES
+! JK   -
+! JK   -
+
+! JK: SHOULD TAUW IN STRESSO AND AIRSEA RE-EVAL USE NEW UPDATED ST6 TAUW?
+! JK   - SINPUT_ST6 CALCULATES TAUW
+! JK   - STRESSO CALCULATES TAUW AND PHIAW
+! JK      - TAUW(IJ) = SQRT(XSTRESS(IJ)**2+YSTRESS(IJ)**2)
+! JK   - AIRSEA USES NEW TAUW , CALCULATES USTAR+Z0
+! JK      - SUB THIS OUT FOR W3FLX4MD (CALCULATES USTAR+Z0)
+! JK   - WNFLUXES USES NEW PHIAW 
+! JK   - PROPOSED SOLN: GIVE ST6 TAUW NEW NAME (TO USE IN AIRSEA CALL), 
+! JK                    CAN STILL CALL STRESSO (TO CALC PHIAW) W/O OVERWRITE           
+
+! JK: IF CALCULATING FLUXES, REQUIRE SPOS FOR STRESSO
+! JK   - STRESSO CALCS PHIAW, REQUIRED BY WNFLUXES
+! JK   - BYPASS FLUX CALCS FOR NOW 
+! JK   - MAYBE LATER PULL IN, OR SAY IGNORE PERMANENTLY FOR ST6
+! JK      - COULD IMPLEMENT USING MORE NATIVE ST6 OUTPUT
+! JK   - IF STILL USING STRESSO LATER, SUB TAU FOR TAU_DUMMY SO DOESN'T 
+! JK     OVERWRITE TAUW PRODUCED BY SINPUT_ST6
+
+IF (IPHYS .EQ. 2 ) THEN
+   CALL AIRSEA (U10, TAUW, USTAR, Z0) ! JK: SUB THIS OUT FOR W3FLX4 (CALCULATES USTAR+Z0)
+ELSE
+   CALL AIRSEA (U10, TAUW, USTAR, Z0) 
+ENDIF
 
 IF (IPHYS .EQ. 1 ) THEN
    CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
-ELSEIF (IPHYS .EQ. 2 ) THEN
-
+ELSEIF (IPHYS .EQ. 2 ) THEN 
    ! CALCULATE GROUP VELOCITIES AND WAVE NUMBERS 
    CALL WAVNU2 ( FL3, DEPTH, WN, CGG, 1E-7, 15, ICON)
 
-!   CALL SINPUT_ST6 (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
-!&                   INDEP, LLWS)
-
-   ! JK Temporary proxy for ST6 
-   CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
-&                   INDEP, LLWS)
+   CALL SINPUT_ST6 (FL3, CGG, WN, U10, USTAR, UDIR, ROAIRN, TAUW, TAUNW,   &
+&                   SL, SPOS, FL )
 
    !--------- Tests --------------------
    ! WAVENU2
@@ -583,6 +612,8 @@ ELSEIF (IPHYS .EQ. 2 ) THEN
 
    ! IRANGE
    !WRITE (IU06,*) 'IRANGE(1,10,1): ', IRANGE(1,10,1)
+
+   ! LFACTOR,  JK - HAVE TO TEST WITHIN CONTEXT OF SINPUT_ST6
 
    ! TAUWINDS, JK - HAVE TO TEST WITHIN CONTEXT OF LFACTOR
    !WRITE (IU06,*)
@@ -601,7 +632,6 @@ ELSEIF (IPHYS .EQ. 2 ) THEN
 
    !------- End tests -----------------
 
-
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
@@ -611,31 +641,35 @@ CALL TOTAL_ENERGY (FL3, EMEANWS, LLWS)
 CALL FEMEAN (FL3, EMEANWS, FMEANWS, LLWS)
 CALL FRCUTINDEX (FMEAN, FMEANWS, USTAR, MIJ)
 
-CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP)
-
 ! re-evalute the input
-CALL AIRSEA (U10, TAUW, USTAR, Z0)
-CALL IMPHFTAIL (MIJ, INDEP, FL3)
+IF (IPHYS .EQ. 2 ) THEN
+   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP) ! DUMMY OUTPUT TAUW
+   CALL AIRSEA (U10, TAUW, USTAR, Z0) ! JK: SUB THIS OUT FOR W3FLX4
+   CALL IMPHFTAIL (MIJ, INDEP, FL3) ! JK: TAIL PRESCRIPTION WILL HAVE TO BE MODIFIED FOR ST6
+ELSE
+   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) 
+   CALL AIRSEA (U10, TAUW, USTAR, Z0)
+   CALL IMPHFTAIL (MIJ, INDEP, FL3) 
+ENDIF
 
 IF (IPHYS .EQ. 1 ) THEN
    CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
-ELSEIF (IPHYS .EQ. 2 ) THEN
-!   CALL SINPUT_ST6 (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
-!&                   INDEP, LLWS)
-   ! JK Temporary proxy for ST6 
-   CALL SINPUT (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
-&               INDEP, LLWS)
-   IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
+ELSEIF (IPHYS .EQ. 2 ) THEN ! SINPUT ITERATION NOT NEEDED FOR ST6
+    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:) 
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
 ENDIF
 
-CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP)
-
+IF (IPHYS .EQ. 2 ) THEN ! - ALTHOUGH FL3 NOT UPDATED SINCE LAST CALL FOR IPHYS=2,
+                        !   USTAR AND Z0 HAVE -> CALL AGAIN TO UPDATE PHIAW (? JK)
+   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP)
+ELSE
+   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP)
+ENDIF
 
 IF (IPHYS .EQ. 1 ) THEN
   CALL SDISSIP_ARD (FL3, SL, FL, USTAR, UDIR, ROAIRN, INDEP)
@@ -729,7 +763,7 @@ CALL FRCUTINDEX (FMEAN, FMEANWS, USTAR, MIJ)
 !     5.3 COMPUTE TAIL ENERGY RATIOS AND MERGE TAIL INTO SPECTRA.              !
 !         -------------------------------------------------------              !
 
-CALL IMPHFTAIL (MIJ, INDEP, FL3)
+CALL IMPHFTAIL (MIJ, INDEP, FL3) ! JK: TAIL PRESCRIPTION WILL HAVE TO BE MODIFIED FOR ST6
 
 END SUBROUTINE IMPLSCH
 
@@ -4492,6 +4526,534 @@ END SUBROUTINE WAVNU2
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
+
+!     CALL LFACTOR(S, CINV, U10, USTAR, UDIR, ROAIRN, SIG, DSII,  LFACT, TAUWX, TAUWY)
+SUBROUTINE LFACTOR(S, CINV, U10, USTAR, USDIR, ROAIRN, SIG, DSII, LFACT, TAUWX, TAUWY)
+
+! ---------------------------------------------------------------------------- !
+!  1. Purpose :
+!
+!      Numerical approximation for the reduction factor LFACTOR(f) to
+!      reduce energy in the high-frequency part of the resolved part
+!      of the spectrum to meet the constraint on total stress (TAU).
+!      The constraint is TAU <= TAU_TOT (TAU_TOT = TAU_WAV + TAU_VIS),
+!      thus the wind input is reduced to match our constraint.
+!
+!  2. Method :
+!
+!     1) If required, extend resolved part of the spectrum to 10Hz using
+!        an approximation for the spectral slope at the high frequency
+!        limit: Sin(F) prop. F**(-2) and for E(F) prop. F**(-5).
+!     2) Calculate stresses:
+!        total stress:     TAU_TOT  = DAIR * USTAR**2
+!        viscous stress:   TAU_VIS  = DAIR * Cv * U10**2
+!        viscous stress (x,y-components):
+!                          TAUV_X   = TAU_VIS * COS(USDIR)
+!                          TAUV_Y   = TAU_VIS * SIN(USDIR)
+!        wave supported stress (x,y-components):    /10Hz
+!                          TAUW_X,Y = GRAV * DWAT * | [SinX,Y(F)]/C(F) dF
+!                                                   /
+!        total stress (input):   TAU  = SQRT( (TAUW_X + TAUV_X)**2
+!                                     + (TAUW_Y + TAUV_Y)**2 )
+!     3) If TAU does not meet our constraint reduce the wind input
+!        using reduction factor:
+!                          LFACT(F) = MIN(1,exp((1-U/C(F))*RTAU))
+!        Then alter RTAU and repeat 3) until our constraint is matched.
+!
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+REAL,    INTENT(IN)    :: S(:,:)      !! WIND INPUT ENERGY DENSITY SPECTRUM.
+REAL,    INTENT(IN)    :: CINV(:)     !! INVERSE PHASE SPEED CALC. IN INPUT ROUTINE
+REAL,    INTENT(IN)    :: U10         !! WIND SPEED [M/S].
+REAL,    INTENT(IN)    :: USTAR       !! FRICTION VELOCITY [M/S].
+REAL,    INTENT(IN)    :: USDIR       !! WIND DIRECTION [RAD].
+REAL,    INTENT(IN)    :: ROAIRN      !! AIR DENSITY
+REAL,    INTENT(IN)    :: SIG(:), DSII(:) !! JK
+
+REAL,    INTENT(OUT)   :: LFACT(:)      ! correction factor
+REAL,    INTENT(OUT)   :: TAUWX, TAUWY  ! normal stress components
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------
+
+INTEGER           :: M
+
+REAL, PARAMETER   :: FRQMAX  = 10.  ! Upper freq. limit to extrapolate to.
+REAL, PARAMETER   :: SIN6WS  = 32.  ! ST6 PARAM
+INTEGER, PARAMETER:: ITERMAX = 80   ! Maximum number of iterations to
+                                    ! find numerical solution for LFACT.
+INTEGER           :: IK, NK10Hz, SIGN_NEW, SIGN_OLD
+
+REAL              :: ESIN2(SIZE(S,1)*SIZE(S,2)) ! SIN OF DIRECTIONS FOR EACH BIN (FRE*DIR)
+REAL              :: ECOS2(SIZE(S,1)*SIZE(S,2)) ! COS OF DIRECTIONS FOR EACH BIN (FRE*DIR)
+REAL, ALLOCATABLE :: IK10Hz(:), LF10Hz(:), SIG10Hz(:), CINV10Hz(:)
+REAL, ALLOCATABLE :: SDENS10Hz(:), SDENSX10Hz(:), SDENSY10Hz(:)
+REAL, ALLOCATABLE :: DSII10Hz(:), UCINV10Hz(:)
+REAL              :: TAU_TOT, TAU, TAU_VIS, TAU_WAV
+REAL              :: TAUVX, TAUVY, TAUX, TAUY
+REAL              :: TAU_NND, TAU_INIT(2)
+REAL              :: UPROXY, RTAU, DRTAU, ERR
+LOGICAL           :: OVERSHOT
+CHARACTER(LEN=23) :: IDTIME
+
+INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
+INTEGER :: NTH   ! NUMBER OF DIRS , SAME AS KL 
+INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS    
+
+! ----------------------------------------------------------------------
+
+      NTH   = SIZE(S,1)  ! NUMBER OF DIRS , SAME AS KL
+      NK    = SIZE(S,2)  ! NUMBER OF FREQS, SAME AS ML 
+      NSPEC = NK * NTH   ! NUMBER OF SPECTRAL BINS
+
+
+!/ 0) --- Find the number of frequencies required to extend arrays
+!/        up to f=10Hz and allocate arrays --------------------------- /
+!/        ALOG is the same as LOG
+      NK10Hz = CEILING(ALOG(FRQMAX/(SIG(1)/ZPI))/ALOG(CO))+1
+        ! JK: XFR=FR MULT FACTOR, TYPICALLY ~1.1, =CO IN WAM (CHECK)
+      NK10Hz = MAX(NK,NK10Hz)
+!
+      ALLOCATE(IK10Hz(NK10Hz))
+      IK10Hz = REAL( IRANGE(1,NK10Hz,1) )
+!
+      ALLOCATE(SIG10Hz(NK10Hz))
+      ALLOCATE(CINV10Hz(NK10Hz))
+      ALLOCATE(DSII10Hz(NK10Hz))
+      ALLOCATE(LF10Hz(NK10Hz))
+      ALLOCATE(SDENS10Hz(NK10Hz))
+      ALLOCATE(SDENSX10Hz(NK10Hz))
+      ALLOCATE(SDENSY10Hz(NK10Hz))
+      ALLOCATE(UCINV10Hz(NK10Hz))
+!
+      ECOS2  = COSTH(1:NSPEC) ! JK CHECK THIS (ECOS=COSTH?)
+      ESIN2  = SINTH(1:NSPEC)
+!
+!/ 1) --- Either extrapolate arrays up to 10Hz or use discrete spectral
+!         grid per se. Limit the constraint to the positive part of the
+!         wind input only. ---------------------------------------------- /
+      IF (NK .LT. NK10Hz) THEN
+         SDENS10Hz(1:NK)         = SUM(S,1) * DELTH
+         SDENSX10Hz(1:NK)        = SUM(MAX(0.,S)*RESHAPE(ECOS2,(/NTH,NK/)),1) * DELTH
+         SDENSY10Hz(1:NK)        = SUM(MAX(0.,S)*RESHAPE(ESIN2,(/NTH,NK/)),1) * DELTH
+         SIG10Hz                 = SIG(1)*CO**(IK10Hz-1.0)
+         CINV10Hz(1:NK)          = CINV
+         CINV10Hz(NK+1:NK10Hz)   = SIG10Hz(NK+1:NK10Hz)*0.101978 ! 1/c=σ/g
+         DSII10Hz                = 0.5 * SIG10Hz * (CO-1.0/CO)
+!        The first and last frequency bin:
+         DSII10Hz(1)             = 0.5 * SIG10Hz(1) * (CO-1.0)
+         DSII10Hz(NK10Hz)        = 0.5 * SIG10Hz(NK10Hz) * (CO-1.0) / CO
+!
+!        --- Spectral slope for S_IN(F) is proportional to F**(-2) ------ /
+         SDENS10Hz(NK+1:NK10Hz)  = SDENS10Hz(NK)  * (SIG10Hz(NK)/SIG10Hz(NK+1:NK10Hz))**2
+         SDENSX10Hz(NK+1:NK10Hz) = SDENSX10Hz(NK) * (SIG10Hz(NK)/SIG10Hz(NK+1:NK10Hz))**2
+         SDENSY10hz(NK+1:NK10Hz) = SDENSY10Hz(NK) * (SIG10Hz(NK)/SIG10Hz(NK+1:NK10Hz))**2
+      ELSE
+         SIG10Hz          = SIG
+         CINV10Hz         = CINV
+         DSII10Hz         = DSII
+         SDENS10Hz(1:NK)  = SUM(S,1) * DELTH
+         SDENSX10Hz(1:NK) = SUM(MAX(0.,S)*RESHAPE(ECOS2,(/NTH,NK/)),1) * DELTH
+         SDENSY10Hz(1:NK) = SUM(MAX(0.,S)*RESHAPE(ESIN2,(/NTH,NK/)),1) * DELTH
+      END IF
+!
+!/ 2) --- Stress calculation ----------------------------------------- /
+!     --- The total stress ------------------------------------------- /
+      TAU_TOT  = USTAR**2 * ROAIRN
+!
+!     --- The viscous stress and check that it does not exceed
+!         the total stress. ------------------------------------------ /
+      TAU_VIS  = MAX(0.0, -5.0E-5*U10 + 1.1E-3) * U10**2 * ROAIRN
+!       TAU_VIS  = MIN(0.9 * TAU_TOT, TAU_VIS)
+      TAU_VIS  = MIN(0.95 * TAU_TOT, TAU_VIS)
+!
+      TAUVX    = TAU_VIS * COS(USDIR)
+      TAUVY    = TAU_VIS * SIN(USDIR)
+!
+!     --- The wave supported stress. --------------------------------- /
+      TAUWX    = TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz)   ! normal stress (x-component)
+      TAUWY    = TAUWINDS(SDENSY10Hz,CINV10Hz,DSII10Hz)   ! normal stress (y-component)
+      TAU_NND  = TAUWINDS(SDENS10Hz, CINV10Hz,DSII10Hz)   ! normal stress (non-directional)
+      TAU_WAV  = SQRT(TAUWX**2 + TAUWY**2)        ! normal stress (magnitude)
+      TAU_INIT = (/TAUWX,TAUWY/)                  ! unadjusted normal stress components
+!
+      TAUX     = TAUVX + TAUWX                        ! total stress (x-component)
+      TAUY     = TAUVY + TAUWY                        ! total stress (y-component)
+      TAU      = SQRT(TAUX**2  + TAUY**2)                 ! total stress (magnitude)
+      ERR      = (TAU-TAU_TOT)/TAU_TOT                    ! initial error
+!
+!/ 3) --- Find reduced Sin(f) = L(f)*Sin(f) to satisfy our constraint
+!/        TAU <= TAU_TOT --------------------------------------------- /
+        !CALL STME21 ( TIME , IDTIME )
+      LF10Hz = 1.0
+      IK = 0
+!
+      IF (TAU .GT. TAU_TOT) THEN
+         OVERSHOT    = .FALSE.
+         RTAU        = ERR / 90.
+         DRTAU       = 2.0
+         SIGN_NEW    = INT(SIGN(1.0,ERR))
+
+         UPROXY      = SIN6WS * USTAR
+         UCINV10Hz   = 1.0 - (UPROXY * CINV10Hz)
+!
+!/T6          WRITE (NDST,270) IDTIME, U10
+!/T6          WRITE (NDST,271)
+         DO IK=1,ITERMAX
+            LF10Hz   = MIN(1.0, EXP(UCINV10Hz * RTAU) )
+!
+            TAU_NND  = TAUWINDS(SDENS10Hz *LF10Hz,CINV10Hz,DSII10Hz)
+            TAUWX    = TAUWINDS(SDENSX10Hz*LF10Hz,CINV10Hz,DSII10Hz)
+            TAUWY    = TAUWINDS(SDENSY10Hz*LF10Hz,CINV10Hz,DSII10Hz)
+            TAU_WAV  = SQRT(TAUWX**2 + TAUWY**2)
+!
+            TAUX     = TAUVX + TAUWX
+            TAUY     = TAUVY + TAUWY
+            TAU      = SQRT(TAUX**2 + TAUY**2)
+            ERR      = (TAU-TAU_TOT) / TAU_TOT
+!
+            SIGN_OLD = SIGN_NEW
+            SIGN_NEW = INT(SIGN(1.0, ERR))
+!/T6             WRITE (NDST,272) IK, RTAU, DRTAU, TAU, TAU_TOT, ERR, &
+!/T6                              TAUWX, TAUWY, TAUVX, TAUVY, TAU_NND
+!
+!        --- Slow down DRTAU when overshot. -------------------------- /
+            IF (SIGN_NEW .NE. SIGN_OLD) OVERSHOT = .TRUE.
+            IF (OVERSHOT) DRTAU = MAX(0.5*(1.0+DRTAU),1.00010)
+!
+            RTAU = RTAU * (DRTAU**SIGN_NEW)
+!
+            IF (ABS(ERR) .LT. 1.54E-4) EXIT
+         END DO
+!
+!           IF (IK .GE. ITERMAX) WRITE (NDST,280) IDTIME(1:19), U10, TAU, &
+!                          TAU_TOT, ERR, TAUWX, TAUWY, TAUVX, TAUVY,TAU_NND
+      END IF
+!
+      LFACT(1:NK) = LF10Hz(1:NK)
+!
+!/T6      WRITE (NDST,273) 'Sin ', IDTIME(1:19), SDENS10Hz*TPI
+!/T6      WRITE (NDST,273) 'SinR', IDTIME(1:19), SDENS10Hz*LF10Hz*TPI
+!/T6      WRITE (NDST,274) 'Sin   ', SUM(SDENS10Hz(1:NK)*DSII)
+!/T6      WRITE (NDST,274) 'SinR  ', SUM(SDENS10Hz(1:NK)*LF10Hz(1:NK)*DSII)
+!/T6      WRITE (NDST,274) 'SinR/C', TAUWINDS(SDENS10Hz(1:NK)*LFACT,CINV,DSII)
+!
+!/T6      270 FORMAT (' TEST W3SIN6 : LFACTOR SUBROUTINE CALCULATING FOR ', &
+!/T6                  A,'  U10=',F5.1                                       )
+!/T6      271 FORMAT (' TEST W3SIN6 : IK    RTAU     DRTAU   TAU   TAU_TOT' &
+!/T6                  '    ERR    TAUW_X TAUW_Y TAUV_X TAUV_Y  TAU1D'       )
+!/T6      272 FORMAT (' TEST W3SIN6 : ',I2,2F9.5,2F8.5,E10.2,4F7.4,F7.3     )
+!/T6      273 FORMAT (' TEST W3SIN6 : ',A,'(',A,'):', 70E11.3               )
+!        274 FORMAT (' TEST W3SIN6 : Total ',A,' =', E13.5                  )
+!        280 FORMAT (' WARNING LFACTOR (TIME,U10,TAU,TAU_TOT,ERR,TAUW_XY,'  &
+!                  'TAUV_XY,TAU_SCALAR): ',A,F6.1,2F7.4,E10.3,4F7.4,F7.3  )
+!
+      DEALLOCATE(IK10Hz,SIG10Hz,CINV10Hz,DSII10Hz,LF10Hz)
+      DEALLOCATE(SDENS10Hz,SDENSX10Hz,SDENSY10Hz,UCINV10Hz)
+
+
+END SUBROUTINE LFACTOR
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE SINPUT_ST6 (F, CGG, WN, UABS, USTAR, USDIR, ROAIRN, TAUW, TAUNW,    &
+&                      SL, SPOS, FL )
+! JK: MIGHT NEED TO ADD SPOS OUTPUT (ONLY NEEDED FOR STRESSO FOR FLUX CALC)
+
+! ----------------------------------------------------------------------
+!
+!  1. Purpose :
+!
+!      Observation-based source term for wind input after Donelan, Babanin,
+!      Young and Banner (Donelan et al ,2006) following the implementation
+!      by Rogers et al. (2012).
+!
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+REAL,    INTENT(IN)    :: F (:, :, :)    !! SPECTRUM.
+REAL,    INTENT(IN)    :: CGG(:,:)       !! GROUP VELOCITY
+REAL,    INTENT(IN)    :: WN (:,:)       !! WAVE NUMBER
+
+REAL,    INTENT(IN)    :: UABS  (:)      !! 10M WIND SPEED.
+REAL,    INTENT(IN)    :: USTAR (:)      !! FRICTION VELOCITY.
+REAL,    INTENT(IN)    :: USDIR (:)      !! WIND DIRECTION.
+REAL,    INTENT(IN)    :: ROAIRN(:)      !! AIR DENSITY
+
+REAL,    INTENT(OUT)   :: TAUW  (:)     !! TOTAL WAVE-SUPPORTED STRESS
+REAL,    INTENT(OUT)   :: TAUNW (:)     !! TOTAL NEGATIVE WAVE-SUPPORTED STRESS
+
+REAL,    INTENT(OUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY
+REAL,    INTENT(OUT)   :: SPOS(:, :, :)  !! POS. PART OF SOURCE FUNCTION ARRAY
+REAL,    INTENT(OUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
+                                         !! DERIVATIVE
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------   
+
+INTEGER                :: IJ, M
+INTEGER                :: IK, ITH, IKN(SIZE(F,3))
+REAL                   :: COSU, SINU, UPROXY
+
+REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))  :: CG2, ECOS2, ESIN2, DSII2, WN2, SIG2
+REAL, DIMENSION(SIZE(F,3))            :: DSII, SIG
+REAL, DIMENSION(SIZE(F,2),SIZE(F,3))  :: SDENSIG, K                           ! 1,2,5)
+REAL, DIMENSION(SIZE(F,3))            :: ADENSIG, KMAX, ANAR, SQRTBN          ! 1,2,3)
+REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))  :: W1, W2, SQRTBN2, CINV2, S, D, A      ! 4,7)
+REAL, DIMENSION(SIZE(F,3))            :: LFACT, CINV                          ! 5)
+REAL, PARAMETER   :: SIN6WS  = 32.  ! ST6 PARAM
+REAL, PARAMETER   :: SIN6A0  = 0.09  ! ST6 PARAM
+
+REAL                          :: TAUWX, TAUWY    ! Component of the wave-supported stress
+REAL                          :: TAUNWX, TAUNWY  ! Component of the negative wave-supported stress
+
+INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
+INTEGER :: NTH   ! NUMBER OF DIRS , SAME AS KL 
+INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS    
+
+! ----------------------------------------------------------------------
+
+      NK    = SIZE(F,3)  ! NUMBER OF FREQS, SAME AS ML 
+      NTH   = SIZE(F,2)  ! NUMBER OF DIRS , SAME AS KL
+      NSPEC = NK * NTH   ! NUMBER OF SPECTRAL BINS
+
+      DO M = 1,SIZE(F,3)
+        SIG(M)  = ZPI*FR(M)
+        DSII(M) = ZPI*DF(M)
+      END DO
+
+      ! LOOP OVER LOCATIONS
+      DO IJ = 1,SIZE(F,1)
+
+!/ 0) --- set up a basic variables ----------------------------------- /
+    
+        ! To reshape from 1D to 2D: K = RESHAPE(A,(/ NTH,NK /))
+        ! To reshape from 2D to 1D: A = RESHAPE(K,(/ NSPEC /))
+        A      = RESHAPE(F(IJ,:,:),(/NSPEC/))  ! ACTION DENSITY SPECTRUM
+
+        COSU   = COS(USDIR(IJ))
+        SINU   = SIN(USDIR(IJ))
+!
+        TAUNWX = 0.
+        TAUNWY = 0.
+        TAUWX  = 0.
+        TAUWY  = 0.
+!
+!/    --- scale  friction velocity to wind speed (10m) in
+!/        the boundary layer ----------------------------------------- /
+!/    Donelan et al. (2006) used U10 or U_{λ/2} in their S_{in}
+!/    parameterization. To avoid some disadvantages of using U10 or
+!/    U_{λ/2}, Rogers et al. (2012) used the following engineering
+!/    conversion:
+!/                    UPROXY = SIN6WS * UST
+!/
+!/    SIN6WS = 28.0 following Komen et al. (1984)
+!/    SIN6WS = 32.0 suggested by E. Rogers (2014)
+!
+        UPROXY = SIN6WS * USTAR(IJ)        ! Scale wind speed
+!
+        ECOS2  = COSTH(1:NSPEC)         ! Only indices from 1 to NSPEC
+        ESIN2  = SINTH(1:NSPEC)         ! are requested.
+!
+        IKN    = IRANGE(1,NSPEC,NTH)   ! Index vector for elements of 1 ... NK
+!                                      ! such that e.g. SIG(1:NK) = SIG2(IKN).
+
+        DO ITH = 1, NTH                    ! Apply to all directions !JK CHECK THIS
+           DSII2 (IKN+(ITH-1)) = DSII    
+           SIG2  (IKN+(ITH-1)) = SIG
+           WN2   (IKN+(ITH-1)) = WN(IJ,:)
+           CG2   (IKN+(ITH-1)) = CGG(IJ,:)
+        END DO
+        CINV2  = WN2 / SIG2            ! inverse phase speed
+
+!
+!/ 1) --- calculate 1d action density spectrum (A(sigma)) and
+!/        zero-out values less than 1.0E-32 to avoid NaNs when
+!/        computing directional narrowness in step 4). --------------- /
+        K       = RESHAPE(A,(/ NTH,NK /))
+        ADENSIG = SUM(K,1) * SIG * DELTH ! Integrate over directions.
+!
+!/ 2) --- calculate normalised directional spectrum K(theta,sigma) --- /
+        KMAX = MAXVAL(K,1)
+        DO IK = 1,NK
+           IF (KMAX(IK).LT.1.0E-34) THEN
+              K(1:NTH,IK) = 1.
+           ELSE
+              K(1:NTH,IK) = K(1:NTH,IK)/KMAX(IK)
+           END IF
+        END DO
+!
+!/ 3) --- calculate normalised spectral saturation BN(IK) ------------ /
+        ANAR    = 1.0/( SUM(K,1) * DELTH )          ! directional narrowness
+!
+        SQRTBN  = SQRT( ANAR * ADENSIG * WN(IJ,:)**3 )
+        DO ITH  = 1, NTH
+           SQRTBN2(IKN+(ITH-1)) = SQRTBN          ! Calculate SQRTBN for
+        END DO                                    ! the entire spectrum.
+!
+!/ 4) --- calculate growth rate GAMMA and S for all directions for
+!/        following winds (U10/c - 1 is positive; W1) and in 7) for
+!/        adverse winds (U10/c -1 is negative, W2). W1 and W2
+!/        complement one another. ------------------------------------ /
+        W1      = MAX( 0., UPROXY * CINV2* ( ECOS2*COSU + ESIN2*SINU ) - 1. )**2
+!
+        D       = (ROAIRN(IJ) / ROWATER) * SIG2 * &
+                  (2.8 - ( 1. + TANH(10.*SQRTBN2*W1 - 11.) )) *SQRTBN2*W1
+!
+        S       = D * A
+!
+!/ 5) --- calculate reduction factor LFACT using non-directional
+!         spectral density of the wind input ------------------------- /
+        CINV    = CINV2(IKN)
+        SDENSIG = RESHAPE(S*SIG2/CG2,(/ NTH,NK /))
+        CALL LFACTOR(SDENSIG, CINV, UABS(IJ), USTAR(IJ), USDIR(IJ),    &
+&                    ROAIRN(IJ), SIG, DSII, LFACT, TAUWX, TAUWY    )
+!
+!/ 6) --- apply reduction (LFACT) to the entire spectrum ------------- /
+        IF (SUM(LFACT) .LT. NK) THEN
+           DO ITH = 1, NTH
+              D(IKN+ITH-1) = D(IKN+ITH-1) * LFACT
+           END DO
+           S = D * A
+        END IF
+!
+!/ 7) --- compute negative wind input for adverse winds. negative
+!/        growth is typically smaller by a factor of ~2.5 (=.28/.11)
+!/        than those for the favourable winds [Donelan, 2006, Eq. (7)].
+!/        the factor is adjustable with NAMELIST parameter in
+!/        ww3_grid.inp: '&SIN6 SINA0 = 0.04 /' ----------------------- /
+        IF (SIN6A0.GT.0.0) THEN
+          W2    = MIN( 0., UPROXY * CINV2* ( ECOS2*COSU + ESIN2*SINU ) - 1. )**2
+          D     = D - ( (ROAIRN(IJ) / ROWATER) * SIG2 * SIN6A0 *                   &
+                  (2.8 - ( 1. + TANH(10.*SQRTBN2*W2 - 11.) )) *SQRTBN2*W2 )
+          S     = D * A
+!     --- compute negative component of the wave supported stresses
+!         from negative part of the wind input  ---------------------- /
+          SDENSIG = RESHAPE(S*SIG2/CG2,(/ NTH,NK /))
+          CALL TAU_WAVE_ATMOS(SDENSIG, CINV, SIG, DSII, TAUNWX, TAUNWY )
+        END IF
+!
+
+        TAUW(IJ)  = SQRT(TAUWX**2+TAUWY**2) 
+        TAUNW(IJ) = SQRT(TAUNWX**2+TAUNWY**2) 
+        SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /))
+        SPOS(IJ,:,:) = SL(IJ,:,:) - SDENSIG(:,:) !JK: CHECK: SL=SPOS+SMIN
+                                                 !JK         (SDENSIG=SMIN HERE)
+        FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /))
+
+      END DO
+      ! END LOOP OVER LOC
+
+END SUBROUTINE SINPUT_ST6
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE TAU_WAVE_ATMOS(S, CINV, SIG, DSII, TAUNWX, TAUNWY )
+
+! ----------------------------------------------------------------------
+!
+!  1. Purpose :
+!
+!     Calculated the stress for the negative part of the input term,
+!     that is the stress from the waves to the atmosphere. Relevant
+!     in the case of opposing winds.
+!
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+REAL,    INTENT(IN)    :: S(:,:)      !! NEG. WIND INPUT ENERGY DENSITY SPECTRUM.
+REAL,    INTENT(IN)    :: CINV(:)     !! INVERSE PHASE SPEED CALC. IN INPUT ROUTINE
+REAL,    INTENT(IN)    :: SIG(:), DSII(:) !! JK
+REAL,    INTENT(OUT)   :: TAUNWX, TAUNWY  ! NEGATIVE WAVE normal stress components
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------   
+
+REAL, PARAMETER   :: FRQMAX  = 10.  ! Upper freq. limit to extrapolate to.
+INTEGER           :: NK10Hz
+!
+REAL, DIMENSION(SIZE(S,1)*SIZE(S,2))  :: ECOS2, ESIN2
+
+REAL, ALLOCATABLE :: IK10Hz(:), SIG10Hz(:), CINV10Hz(:)
+REAL, ALLOCATABLE :: SDENSX10Hz(:), SDENSY10Hz(:)
+REAL, ALLOCATABLE :: DSII10Hz(:), UCINV10Hz(:)
+
+INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
+INTEGER :: NTH   ! NUMBER OF DIRS , SAME AS KL 
+INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS    
+
+! ----------------------------------------------------------------------
+
+      NTH   = SIZE(S,1)  ! NUMBER OF DIRS , SAME AS KL
+      NK    = SIZE(S,2)  ! NUMBER OF FREQS, SAME AS ML 
+      NSPEC = NK * NTH   ! NUMBER OF SPECTRAL BINS
+
+
+!/ 0) --- Find the number of frequencies required to extend arrays
+!/        up to f=10Hz and allocate arrays --------------------------- /
+      NK10Hz = CEILING(ALOG(FRQMAX/(SIG(1)/ZPI))/ALOG(CO))+1 ! JK: CHECK CO=XFR
+      NK10Hz = MAX(NK,NK10Hz)
+!
+      ALLOCATE(IK10Hz(NK10Hz))
+      IK10Hz = REAL( IRANGE(1,NK10Hz,1) )
+!
+      ALLOCATE(SIG10Hz(NK10Hz))
+      ALLOCATE(CINV10Hz(NK10Hz))
+      ALLOCATE(DSII10Hz(NK10Hz))
+      ALLOCATE(SDENSX10Hz(NK10Hz))
+      ALLOCATE(SDENSY10Hz(NK10Hz))
+      ALLOCATE(UCINV10Hz(NK10Hz))
+!
+      ECOS2  = COSTH(1:NSPEC)
+      ESIN2  = SINTH(1:NSPEC)
+!
+!/ 1) --- Either extrapolate arrays up to 10Hz or use discrete spectral
+!         grid per se. Limit the constraint to the positive part of the
+!         wind input only. ---------------------------------------------- /
+      IF (NK .LT. NK10Hz) THEN
+         SDENSX10Hz(1:NK)        = SUM(ABS(MIN(0.,S))*RESHAPE(ECOS2,(/NTH,NK/)),1) * DELTH
+         SDENSY10Hz(1:NK)        = SUM(ABS(MIN(0.,S))*RESHAPE(ESIN2,(/NTH,NK/)),1) * DELTH
+         SIG10Hz                 = SIG(1)*CO**(IK10Hz-1.0)
+         CINV10Hz(1:NK)          = CINV
+         CINV10Hz(NK+1:NK10Hz)   = SIG10Hz(NK+1:NK10Hz)*0.101978
+         DSII10Hz                = 0.5 * SIG10Hz * (CO-1.0/CO)
+!        The first and last frequency bin:
+         DSII10Hz(1)             = 0.5 * SIG10Hz(1) * (CO-1.0)
+         DSII10Hz(NK10Hz)        = 0.5 * SIG10Hz(NK10Hz) * (CO-1.0) / CO
+!
+!        --- Spectral slope for S_IN(F) is proportional to F**(-2) ------ /
+         SDENSX10Hz(NK+1:NK10Hz) = SDENSX10Hz(NK) * (SIG10Hz(NK)/SIG10Hz(NK+1:NK10Hz))**2
+         SDENSY10hz(NK+1:NK10Hz) = SDENSY10Hz(NK) * (SIG10Hz(NK)/SIG10Hz(NK+1:NK10Hz))**2
+      ELSE
+         SIG10Hz          = SIG
+         CINV10Hz         = CINV
+         DSII10Hz         = DSII
+         SDENSX10Hz(1:NK) = SUM(ABS(MIN(0.,S))*RESHAPE(ECOS2,(/NTH,NK/)),1) * DELTH
+         SDENSY10Hz(1:NK) = SUM(ABS(MIN(0.,S))*RESHAPE(ESIN2,(/NTH,NK/)),1) * DELTH
+      END IF
+!
+!/ 2) --- Stress calculation ----------------------------------------- /
+!     --- The wave supported stress (waves to atmosphere) ------------ /
+      TAUNWX = TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz)   ! x-component
+      TAUNWY = TAUWINDS(SDENSY10Hz,CINV10Hz,DSII10Hz)   ! y-component
+
+
+END SUBROUTINE TAU_WAVE_ATMOS
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
 SUBROUTINE W3SPR6 ( F, CGG, WN, EMEAN, FMEAN, WNMEAN, AMAX, FP)
 
 ! ---------------------------------------------------------------------------- !
@@ -4563,7 +5125,7 @@ REAL, PARAMETER         :: HSMIN = 0.05
 !
         IF (4.0*SQRT(EMEAN(IJ)) .GT. HSMIN) THEN
            EB(:) = SUM(F(IJ,:,:),1) * SIG(:) /CGG(IJ,:) * DELTH
-           FP(IJ) = SUM(SIG(:) * EB(:)**4 * ZPI*DF(:)) / SUM(EB(:)**4 * ZPI*DF(:))
+           FP(IJ) = SUM(SIG(:) * EB(:)**4 * ZPI*DF(:)) / SUM(EB(:)**4 *ZPI*DF(:))
            FP(IJ) = FP(IJ) * TPIINV
         END IF
 !

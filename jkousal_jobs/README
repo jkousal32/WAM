@@ -14,7 +14,7 @@ cd /pf/b/b381438/WAM/mk
 
 # ------------------------ Run ----------------
 
-cd /pf/b/b381438/WAM/jobs_josh
+cd /pf/b/b381438/WAM/jkousal_jobs
 
 # Create grid
 #qsub jpgrid
