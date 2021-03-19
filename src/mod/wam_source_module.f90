@@ -275,11 +275,6 @@ INTERFACE IMPHFTAIL         !!  Diagnostic high frequency tail
 END INTERFACE
 PRIVATE IMPHFTAIL
 
-INTERFACE IMPHFTAIL_ST6         !!  Diagnostic high frequency tail
-   MODULE PROCEDURE IMPHFTAIL_ST6
-END INTERFACE
-PRIVATE IMPHFTAIL_ST6
-
 INTERFACE SDEPTHLIM         !!  LIMITS THE SPECTRAL VARIANCE
    MODULE PROCEDURE SDEPTHLIM
 END INTERFACE
@@ -623,12 +618,12 @@ ENDIF
 IF (IPHYS .EQ. 2 ) THEN
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP) ! DUMMY OUTPUT TAUW
    CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
-   CALL IMPHFTAIL_ST6 (MIJ,FL3) 
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) 
    CALL AIRSEA (U10, TAUW, USTAR, Z0)
-   CALL IMPHFTAIL (MIJ, INDEP, FL3) 
 ENDIF
+CALL IMPHFTAIL (MIJ, INDEP, FL3)
+
 
 IF (IPHYS .EQ. 1 ) THEN
    CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
@@ -737,7 +732,7 @@ CALL FEMEAN (FL3, EMEANWS, FMEANWS, LLWS)
 !         ------------------------------------------------------------         !
 
 IF (IPHYS .EQ. 2 ) THEN
-   CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ) !JK
+   CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ) 
 ELSE
    CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
 ENDIF
@@ -745,11 +740,7 @@ ENDIF
 !     5.3 COMPUTE TAIL ENERGY RATIOS AND MERGE TAIL INTO SPECTRA.              !
 !         -------------------------------------------------------              !
 
-IF (IPHYS .EQ. 2 ) THEN
-   CALL IMPHFTAIL_ST6 (MIJ,FL3)  
-ELSE
-   CALL IMPHFTAIL (MIJ, INDEP, FL3)
-ENDIF
+CALL IMPHFTAIL (MIJ, INDEP, FL3) 
 
 END SUBROUTINE IMPLSCH
 
@@ -5413,7 +5404,8 @@ END SUBROUTINE W3FLX4
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE FRCUTINDEX_ST6(F, FMEAN, USTAR, MIJ)
+SUBROUTINE FRCUTINDEX_ST6(F, FMEAN, USTAR, MIJ) ! JK: MIJ is lower here than from
+                                                ! JK  regular FRCUTINDEX, issue?
 
 ! ----------------------------------------------------------------------
 !
@@ -5482,65 +5474,6 @@ REAL                        :: SIGNK ! LAST FREQUENCY [RAD]
       ! END LOOP OVER LOC
 
 END SUBROUTINE FRCUTINDEX_ST6
-
-! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
-
-SUBROUTINE IMPHFTAIL_ST6(MIJ, F) !JK: NEED TO ADD IN EXTRA FEATURE FOR SHALLOW
-
-! ----------------------------------------------------------------------
-!
-!  1. Purpose :
-!
-!     Impose HF tail according to ST6
-!
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     INTERFACE VARIABLES.                                                     !
-!     --------------------                                                     !
-
-INTEGER, INTENT(IN)    :: MIJ (:)    !! CUT OFF INDEX
-REAL,    INTENT(INOUT) :: F (:, :, :)  !! SPECTRUM.
-
-! ---------------------------------------------------------------------------- !
-!                                                                              !
-!     LOCAL VARIABLES.                                                         !
-!     ----------------   
-
-INTEGER                :: IJ, IK, ITH, NKH
-INTEGER, PARAMETER     :: FACHF=5 !HF TAIL FACTOR
-REAL                   :: FACHFA
-REAL                   :: SPEC(SIZE(F,2)*SIZE(F,3))
-
-INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
-INTEGER :: NTH   ! NUMBER OF DIRS , SAME AS KL 
-INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS    
-
-! ----------------------------------------------------------------------
-
-      NTH    = SIZE(F,2)  ! NUMBER OF DIRS , SAME AS KL
-      NK     = SIZE(F,3)  ! NUMBER OF FREQS, SAME AS ML 
-      NSPEC  = NK * NTH   ! NUMBER OF SPECTRAL BINS
-
-      FACHFA = CO**(-FACHF-2)
-
-      ! LOOP OVER LOCATIONS
-      DO IJ = 1,SIZE(F,1)
-
-        SPEC = RESHAPE(F(IJ,:,:),(/ NSPEC /))
-        NKH  = MIJ(IJ)
-
-        DO IK=NKH+1,NK
-          DO ITH=1, NTH
-            SPEC(ITH+(IK-1)*NTH) = SPEC(ITH+(IK-2)*NTH) * FACHFA  + 0.
-          END DO
-        END DO
-
-        F(IJ,:,:) = RESHAPE(SPEC,(/ NTH,NK /))
-
-      END DO
-      ! END LOOP OVER LOC
-
-END SUBROUTINE IMPHFTAIL_ST6
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
