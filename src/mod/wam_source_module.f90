@@ -265,10 +265,20 @@ INTERFACE FRCUTINDEX         !!  Frequency cut index
 END INTERFACE
 PRIVATE FRCUTINDEX
 
+INTERFACE FRCUTINDEX_ST6         !!  Frequency cut index
+   MODULE PROCEDURE FRCUTINDEX_ST6
+END INTERFACE
+PRIVATE FRCUTINDEX_ST6
+
 INTERFACE IMPHFTAIL         !!  Diagnostic high frequency tail
    MODULE PROCEDURE IMPHFTAIL
 END INTERFACE
 PRIVATE IMPHFTAIL
+
+INTERFACE IMPHFTAIL_ST6         !!  Diagnostic high frequency tail
+   MODULE PROCEDURE IMPHFTAIL_ST6
+END INTERFACE
+PRIVATE IMPHFTAIL_ST6
 
 INTERFACE SDEPTHLIM         !!  LIMITS THE SPECTRAL VARIANCE
    MODULE PROCEDURE SDEPTHLIM
@@ -346,11 +356,10 @@ INTERFACE SINPUT_ST6              !! COMPUTATION OF INPUT SOURCE FUNCTION (ST6)
 END INTERFACE
 PRIVATE SINPUT_ST6
 
-! JK - UNCOMMENT WHEN IMPLEMENTED
-!INTERFACE W3SWL6                  !! COMPUTATION OF ST6 SWELL DISSIP SOURCE FUNCTION
-!   MODULE PROCEDURE W3SWL6 
-!END INTERFACE
-!PRIVATE W3SWL6
+INTERFACE W3SWL6                  !! COMPUTATION OF ST6 SWELL DISSIP SOURCE FUNCTION
+   MODULE PROCEDURE W3SWL6 
+END INTERFACE
+PRIVATE W3SWL6
 
 INTERFACE SDISSIP_ST6             !! COMPUTATION OF DISSIP SOURCE FUNCTION (ST6) 
    MODULE PROCEDURE SDISSIP_ST6        
@@ -485,6 +494,9 @@ REAL :: TAUW_DUMMY(SIZE(FL3,1))  ! TOTAL WAVE-SUPPORTED STRESS (DUMMY OUTPUT)
 REAL :: CD(SIZE(FL3,1))           ! DRAG COEFFICIENT
 REAL :: USTARD(SIZE(FL3,1))       ! FRICTION VELOCITY DIRECTION
 
+! FOR W3SWL6
+LOGICAL, PARAMETER :: SWL6S6 = .TRUE. ! ST6 SWELL DISSIPATION
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     1. CALCULATE ROUGHNESS LENGTH AND FRICTION VELOCITIES.                   !
@@ -545,38 +557,17 @@ IF (IPHYS .EQ. 2 ) then
    CALL PEAK_FREQ (F1D, F1A, XMAX, FP, SIG_OM, YMAX, THMAX, SIG_TH)
 END IF
 
+!     2.5 GROUP VELOCITY AND WAVE NUMBER                                       !
+!         ---------------------------------                                    !
+
+IF (IPHYS .EQ. 2 ) then
+   CALL WAVNU2 ( FL3, DEPTH, WN, CGG, 1E-7, 15, ICON)
+END IF
+
 ! -------------------------------------------------------------------------!
 !                                                                          !
 !     3. COMPUTATION OF SOURCE FUNCTIONS AND DERIVATIVES.                  !
 !        ------------------------------------------------                  !
-
-! JK: SHOULD WE USE ITERATION OF INPUT FOR ST6?
-! JK   - DOES ST4 USE IT IN WW3? YES, FOR REDUCTION OF CD 
-! JK   - ST6 USES NO ITERATION IN WW3 -> DO NOT ITERATE HERE
-
-! JK: WHAT NEEDS ITERATION, WHAT DOESN'T:
-! JK   - AIRSEA:  CALC USTAR, USED FOR STRESSO+FRCUTINDEX+WNFLUXES(+SINPUT+SDISSIP)
-! JK   - STRESSO: CALC PHIAW, USED FOR                    WNFLUXES
-! JK   -
-! JK   -
-
-! JK: SHOULD TAUW IN STRESSO AND AIRSEA RE-EVAL USE NEW UPDATED ST6 TAUW?
-! JK   - SINPUT_ST6 CALCULATES TAUW
-! JK   - STRESSO CALCULATES TAUW AND PHIAW
-! JK      - TAUW(IJ) = SQRT(XSTRESS(IJ)**2+YSTRESS(IJ)**2)
-! JK   - AIRSEA USES NEW TAUW , CALCULATES USTAR+Z0
-! JK      - SUB THIS OUT FOR W3FLX4MD (CALCULATES USTAR+Z0)
-! JK   - WNFLUXES USES NEW PHIAW 
-! JK   - PROPOSED SOLN: GIVE ST6 TAUW NEW NAME (TO USE IN AIRSEA CALL), 
-! JK                    CAN STILL CALL STRESSO (TO CALC PHIAW) W/O OVERWRITE           
-
-! JK: IF CALCULATING FLUXES, REQUIRE SPOS FOR STRESSO
-! JK   - STRESSO CALCS PHIAW, REQUIRED BY WNFLUXES
-! JK   - BYPASS FLUX CALCS FOR NOW 
-! JK   - MAYBE LATER PULL IN, OR SAY IGNORE PERMANENTLY FOR ST6
-! JK      - COULD IMPLEMENT USING MORE NATIVE ST6 OUTPUT
-! JK   - IF STILL USING STRESSO LATER, SUB TAU FOR TAU_DUMMY SO DOESN'T 
-! JK     OVERWRITE TAUW PRODUCED BY SINPUT_ST6
 
 IF (IPHYS .EQ. 2 ) THEN
    CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
@@ -588,9 +579,6 @@ IF (IPHYS .EQ. 1 ) THEN
    CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
 ELSEIF (IPHYS .EQ. 2 ) THEN 
-   ! CALCULATE GROUP VELOCITIES AND WAVE NUMBERS 
-   CALL WAVNU2 ( FL3, DEPTH, WN, CGG, 1E-7, 15, ICON)
-
    CALL SINPUT_ST6 (FL3, CGG, WN, U10, USTAR, UDIR, ROAIRN, TAUW, TAUNW,   &
 &                   SL, SPOS, FL )
 
@@ -618,13 +606,24 @@ ENDIF
 
 CALL TOTAL_ENERGY (FL3, EMEANWS, LLWS)
 CALL FEMEAN (FL3, EMEANWS, FMEANWS, LLWS)
-CALL FRCUTINDEX (FMEAN, FMEANWS, USTAR, MIJ)
+
+IF (IPHYS .EQ. 2 ) THEN
+
+   !CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ) ! JK TESTING
+   !WRITE (IU06,*) 'WAM: MIJ=',MIJ ! JK TESTING
+
+   CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ) 
+   !WRITE (IU06,*) 'ST6: MIJ=',MIJ ! JK TESTING
+
+ELSE
+   CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
+ENDIF
 
 ! re-evalute the input
 IF (IPHYS .EQ. 2 ) THEN
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP) ! DUMMY OUTPUT TAUW
    CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
-   CALL IMPHFTAIL (MIJ, INDEP, FL3) ! JK: TAIL PRESCRIPTION WILL HAVE TO BE MODIFIED FOR ST6
+   CALL IMPHFTAIL_ST6 (MIJ,FL3) 
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) 
    CALL AIRSEA (U10, TAUW, USTAR, Z0)
@@ -643,8 +642,8 @@ ELSE
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
 ENDIF
 
-IF (IPHYS .EQ. 2 ) THEN ! - ALTHOUGH FL3 NOT UPDATED SINCE LAST CALL FOR IPHYS=2,
-                        !   USTAR AND Z0 HAVE -> CALL AGAIN TO UPDATE PHIAW (? JK)
+IF (IPHYS .EQ. 2 ) THEN ! JK: ALTHOUGH FL3 NOT UPDATED SINCE LAST CALL FOR IPHYS=2,
+                        !     USTAR AND Z0 HAVE -> CALL AGAIN TO UPDATE PHIAW (?)
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP)
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP)
@@ -654,9 +653,9 @@ IF (IPHYS .EQ. 1 ) THEN
   CALL SDISSIP_ARD (FL3, SL, FL, USTAR, UDIR, ROAIRN, INDEP)
 ELSEIF (IPHYS .EQ. 2 ) THEN
   CALL SDISSIP_ST6 (FL3, CGG, WN, SL, FL )
-  !IF (SWL6S6) THEN
-  !  CALL W3SWL6 ( SPEC, CG1, WN1, VSWL, VDWL )
-  !END IF
+  IF (SWL6S6) THEN
+    CALL W3SWL6    (FL3, CGG, WN, SL, FL )
+  END IF
 ELSE
   CALL SDISSIP     (FL3, SL, FL, EMEAN, F1MEAN, XKMEAN, INDEP)
 ENDIF
@@ -737,13 +736,20 @@ CALL FEMEAN (FL3, EMEANWS, FMEANWS, LLWS)
 !     5.2 COMPUTE LAST FREQUENCY INDEX OF PROGNOSTIC PART OF SPECTRUM.         !
 !         ------------------------------------------------------------         !
 
-CALL FRCUTINDEX (FMEAN, FMEANWS, USTAR, MIJ)
-
+IF (IPHYS .EQ. 2 ) THEN
+   CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ) !JK
+ELSE
+   CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
+ENDIF
 
 !     5.3 COMPUTE TAIL ENERGY RATIOS AND MERGE TAIL INTO SPECTRA.              !
 !         -------------------------------------------------------              !
 
-CALL IMPHFTAIL (MIJ, INDEP, FL3) ! JK: TAIL PRESCRIPTION WILL HAVE TO BE MODIFIED FOR ST6
+IF (IPHYS .EQ. 2 ) THEN
+   CALL IMPHFTAIL_ST6 (MIJ,FL3)  
+ELSE
+   CALL IMPHFTAIL (MIJ, INDEP, FL3)
+ENDIF
 
 END SUBROUTINE IMPLSCH
 
@@ -4500,14 +4506,10 @@ REAL    :: K, CG, SIG, H
       END DO
       ! END LOOP OVER WAVE NUMBERS
 
-      RETURN
-
 END SUBROUTINE WAVNU2
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-
-!     CALL LFACTOR(S, CINV, U10, USTAR, UDIR, ROAIRN, SIG, DSII,  LFACT, TAUWX, TAUWY)
 SUBROUTINE LFACTOR(S, CINV, U10, USTAR, USDIR, ROAIRN, SIG, DSII, LFACT, TAUWX, TAUWY)
 
 ! ---------------------------------------------------------------------------- !
@@ -5024,9 +5026,9 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
 
+        A       = RESHAPE(F(IJ,:,:),(/NSPEC/))  ! ACTION DENSITY SPECTRUM
 
 !/ 0) --- Initialize essential parameters ---------------------------- /
-        A       = RESHAPE(F(IJ,:,:),(/NSPEC/))  ! ACTION DENSITY SPECTRUM
         IKN     = IRANGE(1,NSPEC,NTH)    ! Index vector for elements of 1,
 !                                      ! 2,..., NK such that for example
 !                                      ! SIG(1:NK) = SIG2(IKN).
@@ -5096,6 +5098,140 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 END SUBROUTINE SDISSIP_ST6
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE W3SWL6 (F, CGG, WN, SL, FL )
+
+! ----------------------------------------------------------------------
+!
+!  1. Purpose :
+!
+!     Turbulent dissipation of narrow-banded swell as described in
+!     Babanin (2011, Section 7.5). 
+!
+!     Babanin 2011: Cambridge Press, 295-321, 463pp.
+!
+!  2. Method :
+!
+!     S = D * A
+!
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+REAL,    INTENT(IN)    :: F (:, :, :)    !! SPECTRUM.
+REAL,    INTENT(IN)    :: CGG(:,:)       !! GROUP VELOCITY
+REAL,    INTENT(IN)    :: WN (:,:)       !! WAVE NUMBER
+
+REAL,    INTENT(OUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY
+REAL,    INTENT(OUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
+                                         !! DERIVATIVE
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------   
+
+INTEGER                :: IJ, M
+INTEGER                :: IK, ITH, IKN(SIZE(F,3))
+
+REAL,    PARAMETER     :: SWL6B1     = 0.0041    ! ST6 PARAM
+LOGICAL, PARAMETER     :: SWL6CSTB1  = .FALSE.   ! ST6 PARAM
+
+REAL, DIMENSION(SIZE(F,3))             :: ABAND, KMAX, ANAR, BN, AORB, DDIS
+REAL, DIMENSION(SIZE(F,3))             :: SIG, DDEN
+REAL, DIMENSION(SIZE(F,2),SIZE(F,3))   :: K
+REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))   :: S, D, A
+REAL                                   :: B1
+
+
+INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
+INTEGER :: NTH   ! NUMBER OF DIRS , SAME AS KL 
+INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS    
+
+! ----------------------------------------------------------------------
+
+      NTH   = SIZE(F,2)  ! NUMBER OF DIRS , SAME AS KL
+      NK    = SIZE(F,3)  ! NUMBER OF FREQS, SAME AS ML 
+      NSPEC = NK * NTH   ! NUMBER OF SPECTRAL BINS
+
+      DO M = 1,SIZE(F,3)
+        SIG(M)  = ZPI*FR(M)
+        DDEN(M) = ZPI*DFIM(M)*SIG(M) ! JK: CHECK THIS
+      END DO
+
+      ! LOOP OVER LOCATIONS
+      DO IJ = 1,SIZE(F,1)
+
+        A       = RESHAPE(F(IJ,:,:),(/NSPEC/))  ! ACTION DENSITY SPECTRUM
+
+!/ 0) --- Initialize parameters -------------------------------------- /
+        IKN   = IRANGE(1,NSPEC,NTH)            ! Index vector for array access, e.g.  
+                                               ! in form of WN(1:NK) == WN2(IKN).
+        ABAND = SUM(RESHAPE(A,(/ NTH,NK /)),1) ! action density as function of wavenumber
+        DDIS  = 0.
+        D     = 0.
+        B1    = SWL6B1                         ! empirical constant from NAMELIST
+
+!/ 1) --- Choose calculation of steepness a*k ------------------------ /
+!/        Replace the measure of steepness with the spectral
+!         saturation after Banner et al. (2002) ---------------------- /
+        K     = RESHAPE(A,(/ NTH,NK /))
+        KMAX  = MAXVAL(K,1)
+        DO IK = 1,NK
+           IF (KMAX(IK).LT.1.0E-34) THEN
+              K(1:NTH,IK) = 1.
+           ELSE
+              K(1:NTH,IK) = K(1:NTH,IK)/KMAX(IK)
+           END IF
+        END DO
+        ANAR  = 1.0/( SUM(K,1) * DELTH )
+        BN    = ANAR * ( ABAND * SIG * DELTH ) * WN(IJ,:)**3
+!
+        IF (.NOT.SWL6CSTB1) THEN
+!
+!/    --- A constant value for B1 attenuates swell too strong in the
+!/        western central Pacific (i.e. cross swell less than 1.0m).
+!/        Workaround is to scale B1 with steepness a*kp, where kp is
+!/        the peak wavenumber. SWL6B1 remains a scaling constant, but
+!/        with different magnitude.  --------------------------------- /
+            IK    = MAXLOC(ABAND,1)         ! Index for peak
+!           EMEAN = SUM(ABAND * DDEN / CG)  ! Total sea surface variance
+            B1    = SWL6B1 * ( 2. * SQRT(SUM( ABAND*DDEN/CGG(IJ,:) )) * WN(IJ,IK) )
+!
+        END IF
+!
+!/ 2) --- Calculate the derivative term only (in units of 1/s) ------- /
+        DO IK = 1,NK
+           IF (ABAND(IK) .GT. 1.E-30) THEN
+              DDIS(IK) = -(2./3.) * B1 * SIG(IK) * SQRT(BN(IK))
+           END IF
+        END DO
+!
+!/ 3) --- Apply dissipation term of derivative to all directions ----- /
+        DO ITH = 1, NTH
+           D(IKN+(ITH-1)) = DDIS
+        END DO
+!
+        S = D * A
+!
+!       WRITE(*,*) ' B1       =',B1
+!       WRITE(*,*) ' DDIS_tot =',SUM(DDIS*ABAND*DDEN/CG)
+!       WRITE(*,*) ' EDENS_tot=',sum(aband*dden/cg)
+!       WRITE(*,*) ' EDENS_tot=',sum(aband*sig*dth*dsii/cg)
+!       WRITE(*,*) ' '
+!       WRITE(*,*) ' SWL6_tot =',sum(SUM(RESHAPE(S,(/ NTH,NK /)),1)*DDEN/CG)
+
+
+        SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /))
+        FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /))
+
+      END DO
+      ! END LOOP OVER LOC
+
+END SUBROUTINE W3SWL6
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
 
 
 SUBROUTINE TAU_WAVE_ATMOS(S, CINV, SIG, DSII, TAUNWX, TAUNWY )
@@ -5274,6 +5410,137 @@ REAL, PARAMETER   :: FLX4A0  = 1.0  ! CDFAC, WIND SCALING, ~BETAMAX JK ?
       ! END LOOP OVER LOC
 
 END SUBROUTINE W3FLX4
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE FRCUTINDEX_ST6(F, FMEAN, USTAR, MIJ)
+
+! ----------------------------------------------------------------------
+!
+!  1. Purpose :
+!
+!     Impose HF tail according to ST6
+!
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+REAL,    INTENT(IN)    :: F (:,:,:)    !! SPECTRUM (JUST FOR SIZES)
+REAL,    INTENT(IN)    :: FMEAN (:)    !! MEAN FREQUENCY
+REAL,    INTENT(IN)    :: USTAR (:)    !! FRICTION VELOCITY
+INTEGER, INTENT(OUT)   :: MIJ(:)       !! LAST FREQUENCY INDEX OF THE PROGNOSTIC RANGE
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------   
+
+INTEGER                     :: IJ, NK, NKH, NKH1
+REAL, PARAMETER             :: SIN6FC = 6.
+REAL                        :: FXFM, FXPM, FACTI1, FACTI2 ! constants
+REAL                        :: FHIGH ! Cut-off frequency in integration (rad/s)
+REAL                        :: SIGNK ! LAST FREQUENCY [RAD]
+
+! ----------------------------------------------------------------------
+
+      NK     = SIZE(F, 3)
+      FXFM   = SIN6FC
+      FXFM   = FXFM * ZPI
+      FXPM   = 4.0
+      FXPM   = FXPM * G / 28.
+      SIGNK  = ZPI*FR(SIZE(F,3))
+
+      ! LOOP OVER LOCATIONS
+      DO IJ = 1,SIZE(F,1)
+
+        IF (FXFM .LE. 0) THEN
+           FHIGH = SIGNK ! LAST FREQ i.e. let tail evolve freely
+        ELSE
+           FHIGH = MAX (FXFM * FMEAN(IJ), FXPM / USTAR(IJ))
+        ENDIF
+
+
+        FACTI1 = 1. / LOG(CO)
+        FACTI2 = 1. - LOG(ZPI*FR(1)) * FACTI1
+
+        NKH    = MIN ( NK , INT(FACTI2+FACTI1*LOG(MAX(1.E-7,FHIGH))) )
+        NKH1   = MIN ( NK , NKH+1 )
+
+
+        IF (FXFM .LE. 0) THEN
+            FHIGH = SIGNK
+        ELSE
+            FHIGH = MIN ( SIGNK, MAX(FXFM * FMEAN(IJ), FXPM / USTAR(IJ)) )
+        ENDIF
+        NKH    = MAX ( 2 , MIN ( NKH1 ,                           &
+                 INT ( FACTI2 + FACTI1*LOG(MAX(1.E-7,FHIGH)) ) ) )
+
+        MIJ(IJ) = NKH
+
+      END DO
+      ! END LOOP OVER LOC
+
+END SUBROUTINE FRCUTINDEX_ST6
+
+! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+SUBROUTINE IMPHFTAIL_ST6(MIJ, F) !JK: NEED TO ADD IN EXTRA FEATURE FOR SHALLOW
+
+! ----------------------------------------------------------------------
+!
+!  1. Purpose :
+!
+!     Impose HF tail according to ST6
+!
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     INTERFACE VARIABLES.                                                     !
+!     --------------------                                                     !
+
+INTEGER, INTENT(IN)    :: MIJ (:)    !! CUT OFF INDEX
+REAL,    INTENT(INOUT) :: F (:, :, :)  !! SPECTRUM.
+
+! ---------------------------------------------------------------------------- !
+!                                                                              !
+!     LOCAL VARIABLES.                                                         !
+!     ----------------   
+
+INTEGER                :: IJ, IK, ITH, NKH
+INTEGER, PARAMETER     :: FACHF=5 !HF TAIL FACTOR
+REAL                   :: FACHFA
+REAL                   :: SPEC(SIZE(F,2)*SIZE(F,3))
+
+INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
+INTEGER :: NTH   ! NUMBER OF DIRS , SAME AS KL 
+INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS    
+
+! ----------------------------------------------------------------------
+
+      NTH    = SIZE(F,2)  ! NUMBER OF DIRS , SAME AS KL
+      NK     = SIZE(F,3)  ! NUMBER OF FREQS, SAME AS ML 
+      NSPEC  = NK * NTH   ! NUMBER OF SPECTRAL BINS
+
+      FACHFA = CO**(-FACHF-2)
+
+      ! LOOP OVER LOCATIONS
+      DO IJ = 1,SIZE(F,1)
+
+        SPEC = RESHAPE(F(IJ,:,:),(/ NSPEC /))
+        NKH  = MIJ(IJ)
+
+        DO IK=NKH+1,NK
+          DO ITH=1, NTH
+            SPEC(ITH+(IK-1)*NTH) = SPEC(ITH+(IK-2)*NTH) * FACHFA  + 0.
+          END DO
+        END DO
+
+        F(IJ,:,:) = RESHAPE(SPEC,(/ NTH,NK /))
+
+      END DO
+      ! END LOOP OVER LOC
+
+END SUBROUTINE IMPHFTAIL_ST6
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
