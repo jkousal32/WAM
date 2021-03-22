@@ -492,6 +492,7 @@ REAL :: USTARD(SIZE(FL3,1))       ! FRICTION VELOCITY DIRECTION
 ! FOR W3SWL6
 LOGICAL, PARAMETER :: SWL6S6 = .TRUE. ! ST6 SWELL DISSIPATION
 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     1. CALCULATE ROUGHNESS LENGTH AND FRICTION VELOCITIES.                   !
@@ -577,7 +578,7 @@ ELSEIF (IPHYS .EQ. 2 ) THEN
    CALL SINPUT_ST6 (FL3, CGG, WN, U10, USTAR, UDIR, ROAIRN, TAUW, TAUNW,   &
 &                   SL, SPOS, FL )
 
-   !--------- Tests --------------------
+   !--------- Tests JK -----------------
    ! WAVENU2
    !WRITE (IU06,*) 'FR(:): ', FR(:)
    !WRITE (IU06,*) 'DEPTH(1): ', DEPTH(1)
@@ -586,9 +587,9 @@ ELSEIF (IPHYS .EQ. 2 ) THEN
    ! IRANGE
    !WRITE (IU06,*) 'IRANGE(1,10,1): ', IRANGE(1,10,1)
 
-   ! LFACTOR,  JK - HAVE TO TEST WITHIN CONTEXT OF SINPUT_ST6
+   ! LFACTOR,  HAVE TO TEST WITHIN CONTEXT OF SINPUT_ST6
 
-   ! TAUWINDS, JK - HAVE TO TEST WITHIN CONTEXT OF LFACTOR
+   ! TAUWINDS, HAVE TO TEST WITHIN CONTEXT OF LFACTOR
    !WRITE (IU06,*)
    !'TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz):',TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz)
 
@@ -603,13 +604,7 @@ CALL TOTAL_ENERGY (FL3, EMEANWS, LLWS)
 CALL FEMEAN (FL3, EMEANWS, FMEANWS, LLWS)
 
 IF (IPHYS .EQ. 2 ) THEN
-
-   !CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ) ! JK TESTING
-   !WRITE (IU06,*) 'WAM: MIJ=',MIJ ! JK TESTING
-
-   CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ) 
-   !WRITE (IU06,*) 'ST6: MIJ=',MIJ ! JK TESTING
-
+   CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ)  
 ELSE
    CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
 ENDIF
@@ -638,13 +633,14 @@ ELSE
 ENDIF
 
 IF (IPHYS .EQ. 2 ) THEN ! JK: ALTHOUGH FL3 NOT UPDATED SINCE LAST CALL FOR IPHYS=2,
-                        !     USTAR AND Z0 HAVE -> CALL AGAIN TO UPDATE PHIAW (?)
+                        ! JK  USTAR AND Z0 HAVE -> CALL AGAIN TO UPDATE PHIAW (?)
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP)
+   ! JK: TAUW CALC NOT NEEDED HERE AS IS DONE IN SINPUT_ST6 CALL
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP)
 ENDIF
 
-IF (IPHYS .EQ. 1 ) THEN
+IF (IPHYS .EQ. 1 ) THEN 
   CALL SDISSIP_ARD (FL3, SL, FL, USTAR, UDIR, ROAIRN, INDEP)
 ELSEIF (IPHYS .EQ. 2 ) THEN
   CALL SDISSIP_ST6 (FL3, CGG, WN, SL, FL )
@@ -4543,7 +4539,8 @@ REAL,    INTENT(IN)    :: U10         !! WIND SPEED [M/S].
 REAL,    INTENT(IN)    :: USTAR       !! FRICTION VELOCITY [M/S].
 REAL,    INTENT(IN)    :: USDIR       !! WIND DIRECTION [RAD].
 REAL,    INTENT(IN)    :: ROAIRN      !! AIR DENSITY
-REAL,    INTENT(IN)    :: SIG(:), DSII(:) !! JK
+REAL,    INTENT(IN)    :: SIG(:)      !! FREQ (RAD)
+REAL,    INTENT(IN)    :: DSII(:)     !! ZPI*DF
 
 REAL,    INTENT(OUT)   :: LFACT(:)      ! correction factor
 REAL,    INTENT(OUT)   :: TAUWX, TAUWY  ! normal stress components
@@ -4588,7 +4585,6 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/        up to f=10Hz and allocate arrays --------------------------- /
 !/        ALOG is the same as LOG
       NK10Hz = CEILING(ALOG(FRQMAX/(SIG(1)/ZPI))/ALOG(CO))+1
-        ! JK: XFR=FR MULT FACTOR, TYPICALLY ~1.1, =CO IN WAM (CHECK)
       NK10Hz = MAX(NK,NK10Hz)
 !
       ALLOCATE(IK10Hz(NK10Hz))
@@ -4603,7 +4599,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       ALLOCATE(SDENSY10Hz(NK10Hz))
       ALLOCATE(UCINV10Hz(NK10Hz))
 !
-      ECOS2  = COSTH(1:NSPEC) ! JK CHECK THIS (ECOS=COSTH?)
+      ECOS2  = COSTH(1:NSPEC) 
       ESIN2  = SINTH(1:NSPEC)
 !
 !/ 1) --- Either extrapolate arrays up to 10Hz or use discrete spectral
@@ -4759,7 +4755,7 @@ REAL,    INTENT(IN)    :: WN (:,:)       !! WAVE NUMBER
 
 REAL,    INTENT(IN)    :: UABS  (:)      !! 10M WIND SPEED.
 REAL,    INTENT(IN)    :: USTAR (:)      !! FRICTION VELOCITY.
-REAL,    INTENT(IN)    :: USDIR (:)      !! WIND DIRECTION.
+REAL,    INTENT(IN)    :: USDIR (:)      !! WIND DIRECTION
 REAL,    INTENT(IN)    :: ROAIRN(:)      !! AIR DENSITY
 
 REAL,    INTENT(OUT)   :: TAUW  (:)     !! TOTAL WAVE-SUPPORTED STRESS
@@ -4768,7 +4764,13 @@ REAL,    INTENT(OUT)   :: TAUNW (:)     !! TOTAL NEGATIVE WAVE-SUPPORTED STRESS
 REAL,    INTENT(OUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY
 REAL,    INTENT(OUT)   :: SPOS(:, :, :)  !! POS. PART OF SOURCE FUNCTION ARRAY
 REAL,    INTENT(OUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
-                                         !! DERIVATIVE
+!                                         !! DERIVATIVE
+
+!REAL,    INTENT(INOUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY JK
+!REAL,    INTENT(OUT)   :: SPOS(:, :, :)    !! POS. PART OF SOURCE FUNCTION ARRAY
+!REAL,    INTENT(INOUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL JK
+                                           !! DERIVATIVE
+
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -4963,9 +4965,9 @@ REAL,    INTENT(IN)    :: F (:, :, :)    !! SPECTRUM.
 REAL,    INTENT(IN)    :: CGG(:,:)       !! GROUP VELOCITY
 REAL,    INTENT(IN)    :: WN (:,:)       !! WAVE NUMBER
 
-REAL,    INTENT(OUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY
-REAL,    INTENT(OUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
-                                         !! DERIVATIVE
+REAL,    INTENT(INOUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY
+REAL,    INTENT(INOUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
+                                           !! DERIVATIVE 
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
@@ -4997,6 +4999,7 @@ REAL              :: T12(SIZE(F,3))      ! = T1+T2 or combined dissipation
 REAL              :: ADF(SIZE(F,3)), XFAC, EDENSMAX ! temp. variables
 
 REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))  :: S, D, A    
+REAL, DIMENSION(SIZE(F,2),SIZE(F,3))  :: DDS!, SDS ! JK
 
 
 INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
@@ -5080,8 +5083,19 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/T6     270 FORMAT (' TEST W3SDS6 : ',A,'(',A,')',':',70E11.3)
 !/T6     271 FORMAT (' TEST W3SDS6 : Total SDS  =',E13.5)
 
-        SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /))
-        FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /))
+!        SL(IJ,:,:) = SL(IJ,:,:) + RESHAPE(S,(/ NTH,NK /))
+!        FL(IJ,:,:) = FL(IJ,:,:) + RESHAPE(D,(/ NTH,NK /))
+
+
+        !SDS = RESHAPE(S,(/NTH,NK/)) JK
+        DDS = RESHAPE(D,(/NTH,NK/))
+        DO IK = 1,NK
+          DO ITH = 1, NTH
+            SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DDS(ITH,IK)*F(IJ,ITH,IK)
+            FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DDS(ITH,IK)
+          END DO
+        END DO
+
 
       END DO
       ! END LOOP OVER LOC
@@ -5114,9 +5128,9 @@ REAL,    INTENT(IN)    :: F (:, :, :)    !! SPECTRUM.
 REAL,    INTENT(IN)    :: CGG(:,:)       !! GROUP VELOCITY
 REAL,    INTENT(IN)    :: WN (:,:)       !! WAVE NUMBER
 
-REAL,    INTENT(OUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY
-REAL,    INTENT(OUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
-                                         !! DERIVATIVE
+REAL,    INTENT(INOUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY
+REAL,    INTENT(INOUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
+                                           !! DERIVATIVE
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     LOCAL VARIABLES.                                                         !
@@ -5133,6 +5147,7 @@ REAL, DIMENSION(SIZE(F,3))             :: SIG, DDEN
 REAL, DIMENSION(SIZE(F,2),SIZE(F,3))   :: K
 REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))   :: S, D, A
 REAL                                   :: B1
+REAL, DIMENSION(SIZE(F,2),SIZE(F,3))   :: DSWL !, SSWL, !JK
 
 
 INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
@@ -5212,9 +5227,15 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !       WRITE(*,*) ' '
 !       WRITE(*,*) ' SWL6_tot =',sum(SUM(RESHAPE(S,(/ NTH,NK /)),1)*DDEN/CG)
 
+        !SSWL = RESHAPE(S,(/NTH,NK/)) ! JK
+        DSWL = RESHAPE(D,(/NTH,NK/))
+        DO IK = 1,NK
+          DO ITH = 1, NTH
+            SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DSWL(ITH,IK)*F(IJ,ITH,IK)
+            FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DSWL(ITH,IK)
+          END DO
+        END DO
 
-        SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /))
-        FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /))
 
       END DO
       ! END LOOP OVER LOC
@@ -5251,7 +5272,8 @@ SUBROUTINE TAU_WAVE_ATMOS(S, CINV, SIG, DSII, TAUNWX, TAUNWY )
 
 REAL,    INTENT(IN)    :: S(:,:)      !! NEG. WIND INPUT ENERGY DENSITY SPECTRUM.
 REAL,    INTENT(IN)    :: CINV(:)     !! INVERSE PHASE SPEED CALC. IN INPUT ROUTINE
-REAL,    INTENT(IN)    :: SIG(:), DSII(:) !! JK
+REAL,    INTENT(IN)    :: SIG(:)      !! FREQ (RAD)
+REAL,    INTENT(IN)    :: DSII(:)     !! ZPI*DF
 REAL,    INTENT(OUT)   :: TAUNWX, TAUNWY  ! NEGATIVE WAVE normal stress components
 
 ! ---------------------------------------------------------------------------- !
@@ -5281,7 +5303,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 
 !/ 0) --- Find the number of frequencies required to extend arrays
 !/        up to f=10Hz and allocate arrays --------------------------- /
-      NK10Hz = CEILING(ALOG(FRQMAX/(SIG(1)/ZPI))/ALOG(CO))+1 ! JK: CHECK CO=XFR
+      NK10Hz = CEILING(ALOG(FRQMAX/(SIG(1)/ZPI))/ALOG(CO))+1 
       NK10Hz = MAX(NK,NK10Hz)
 !
       ALLOCATE(IK10Hz(NK10Hz))
@@ -5350,8 +5372,8 @@ SUBROUTINE W3FLX4 ( ZWND, U10, U10D, UST, USTD, Z0, CD )
 !     INTERFACE VARIABLES.                                                     !
 !     --------------------                                                     !
 
-REAL,    INTENT(IN)    :: ZWND           !! WIND HEIGHT. JK XNLEV ?
-REAL,    INTENT(IN)    :: U10  (:)       !! WIND SPEED AT XNLEV
+REAL,    INTENT(IN)    :: ZWND           !! WIND HEIGHT (XNLEV)
+REAL,    INTENT(IN)    :: U10  (:)       !! WIND SPEED  (AT XNLEV)
 REAL,    INTENT(IN)    :: U10D (:)       !! WIND DIRECTION.
 
 REAL,    INTENT(OUT)   :: UST (:)     !! FRICTION VELOCITY.
@@ -5366,7 +5388,7 @@ REAL,    INTENT(OUT)   :: CD (:)      !! DRAG COEFFICIENT
 !     ----------------   
 
 INTEGER :: IJ
-REAL, PARAMETER   :: FLX4A0  = 1.0  ! CDFAC, WIND SCALING, ~BETAMAX JK ?
+REAL, PARAMETER   :: FLX4A0  = 2.E2  ! CDFAC WIND SCALING !JK
 
 ! ----------------------------------------------------------------------
 
@@ -5404,7 +5426,7 @@ END SUBROUTINE W3FLX4
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE FRCUTINDEX_ST6(F, FMEAN, USTAR, MIJ) ! JK: MIJ is lower here than from
+SUBROUTINE FRCUTINDEX_ST6(F, FMEAN, USTAR, MIJ) ! JK: MIJ is lower here (by 1) than from
                                                 ! JK  regular FRCUTINDEX, issue?
 
 ! ----------------------------------------------------------------------
