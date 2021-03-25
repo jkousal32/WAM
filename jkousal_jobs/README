@@ -45,5 +45,9 @@ lr wam.*
 ncview /work/bu1213/b381438/WAM/coarse/JAN/WAVE1978090606.nc &
 
 
-
-
+# -----------------------------------------------
+#  Running slow? 
+#   - Try change projects:            bu1213 gg0028
+#   - Check queues:                   sinfo -p compute,compute2
+#   - Check scheduled start time:     squeue --start -j $JOBID
+#

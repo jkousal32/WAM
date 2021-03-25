@@ -558,12 +558,20 @@ END IF
 
 IF (IPHYS .EQ. 2 ) then
    CALL WAVNU2 ( FL3, DEPTH, WN, CGG, 1E-7, 15, ICON)
+   !--------- Tests JK -----------------
+   !WRITE (IU06,*) 'FR(:): ', FR(:)
+   !WRITE (IU06,*) 'DEPTH(1): ', DEPTH(1)
+   !WRITE (IU06,*) 'WN(1,:): ', WN(1,:)
+   !------- End tests -----------------
+
 END IF
 
 ! -------------------------------------------------------------------------!
 !                                                                          !
 !     3. COMPUTATION OF SOURCE FUNCTIONS AND DERIVATIVES.                  !
 !        ------------------------------------------------                  !
+
+!WRITE (IU06,*) 'TAUW (WAM) =',TAUW !JK
 
 IF (IPHYS .EQ. 2 ) THEN
    CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
@@ -577,24 +585,8 @@ IF (IPHYS .EQ. 1 ) THEN
 ELSEIF (IPHYS .EQ. 2 ) THEN 
    CALL SINPUT_ST6 (FL3, CGG, WN, U10, USTAR, UDIR, ROAIRN, TAUW, TAUNW,   &
 &                   SL, SPOS, FL )
-
-   !--------- Tests JK -----------------
-   ! WAVENU2
-   !WRITE (IU06,*) 'FR(:): ', FR(:)
-   !WRITE (IU06,*) 'DEPTH(1): ', DEPTH(1)
-   !WRITE (IU06,*) 'WN(1,:): ', WN(1,:)
-
-   ! IRANGE
-   !WRITE (IU06,*) 'IRANGE(1,10,1): ', IRANGE(1,10,1)
-
-   ! LFACTOR,  HAVE TO TEST WITHIN CONTEXT OF SINPUT_ST6
-
-   ! TAUWINDS, HAVE TO TEST WITHIN CONTEXT OF LFACTOR
-   !WRITE (IU06,*)
-   !'TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz):',TAUWINDS(SDENSX10Hz,CINV10Hz,DSII10Hz)
-
-   !------- End tests -----------------
-
+   !WRITE (IU06,*) 'TAUW (ST6) =',TAUW   !JK
+   !WRITE (IU06,*) 'TAUNW (ST6) =',TAUNW !JK
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
@@ -612,6 +604,7 @@ ENDIF
 ! re-evalute the input
 IF (IPHYS .EQ. 2 ) THEN
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP) ! DUMMY OUTPUT TAUW
+   !WRITE (IU06,*) 'TAUW_DUMMY (STRESSO) =',TAUW ! JK
    CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) 
@@ -625,7 +618,7 @@ IF (IPHYS .EQ. 1 ) THEN
 &                   INDEP, LLWS)
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
 ELSEIF (IPHYS .EQ. 2 ) THEN ! SINPUT ITERATION NOT NEEDED FOR ST6
-    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:) 
+   IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:) 
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
@@ -4556,7 +4549,7 @@ REAL, PARAMETER   :: FRQMAX  = 10.  ! Upper freq. limit to extrapolate to.
 REAL, PARAMETER   :: SIN6WS  = 32.  ! ST6 PARAM
 INTEGER, PARAMETER:: ITERMAX = 80   ! Maximum number of iterations to
                                     ! find numerical solution for LFACT.
-INTEGER           :: IK, NK10Hz, SIGN_NEW, SIGN_OLD
+INTEGER           :: NK10Hz, SIGN_NEW, SIGN_OLD
 
 REAL              :: ESIN2(SIZE(S,1)*SIZE(S,2)) ! SIN OF DIRECTIONS FOR EACH BIN (FRE*DIR)
 REAL              :: ECOS2(SIZE(S,1)*SIZE(S,2)) ! COS OF DIRECTIONS FOR EACH BIN (FRE*DIR)
@@ -4573,6 +4566,8 @@ CHARACTER(LEN=23) :: IDTIME
 INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
 INTEGER :: NTH   ! NUMBER OF DIRS , SAME AS KL 
 INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS    
+INTEGER :: IK, ITH, IKN(SIZE(S,2)), ITHN(SIZE(S,1))
+
 
 ! ----------------------------------------------------------------------
 
@@ -4599,8 +4594,12 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       ALLOCATE(SDENSY10Hz(NK10Hz))
       ALLOCATE(UCINV10Hz(NK10Hz))
 !
-      ECOS2  = COSTH(1:NSPEC) 
-      ESIN2  = SINTH(1:NSPEC)
+      ITHN   = IRANGE(1,NSPEC,NK)    ! Index vector for elements of 1 ... NTH
+      DO IK = 1, NK                    ! Apply to all wavenumbers !JK 
+         ECOS2 (ITHN+(IK-1)) = COSTH
+         ESIN2 (ITHN+(IK-1)) = SINTH
+      END DO
+
 !
 !/ 1) --- Either extrapolate arrays up to 10Hz or use discrete spectral
 !         grid per se. Limit the constraint to the positive part of the
@@ -4764,12 +4763,8 @@ REAL,    INTENT(OUT)   :: TAUNW (:)     !! TOTAL NEGATIVE WAVE-SUPPORTED STRESS
 REAL,    INTENT(OUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY
 REAL,    INTENT(OUT)   :: SPOS(:, :, :)  !! POS. PART OF SOURCE FUNCTION ARRAY
 REAL,    INTENT(OUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
-!                                         !! DERIVATIVE
+                                         !! DERIVATIVE
 
-!REAL,    INTENT(INOUT)   :: SL(:, :, :)    !! TOTAL SOURCE FUNCTION ARRAY JK
-!REAL,    INTENT(OUT)   :: SPOS(:, :, :)    !! POS. PART OF SOURCE FUNCTION ARRAY
-!REAL,    INTENT(INOUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL JK
-                                           !! DERIVATIVE
 
 
 ! ---------------------------------------------------------------------------- !
@@ -4778,7 +4773,7 @@ REAL,    INTENT(OUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
 !     ----------------   
 
 INTEGER                :: IJ, M
-INTEGER                :: IK, ITH, IKN(SIZE(F,3))
+INTEGER                :: IK, ITH, IKN(SIZE(F,3)), ITHN(SIZE(F,2))
 REAL                   :: COSU, SINU, UPROXY
 
 REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))  :: CG2, ECOS2, ESIN2, DSII2, WN2, SIG2
@@ -4838,8 +4833,12 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !
         UPROXY = SIN6WS * USTAR(IJ)        ! Scale wind speed
 !
-        ECOS2  = COSTH(1:NSPEC)         ! Only indices from 1 to NSPEC
-        ESIN2  = SINTH(1:NSPEC)         ! are requested.
+        ITHN   = IRANGE(1,NSPEC,NK)    ! Index vector for elements of 1 ... NTH
+        DO IK = 1, NK                    ! Apply to all wavenumbers !JK 
+           ECOS2 (ITHN+(IK-1)) = COSTH
+           ESIN2 (ITHN+(IK-1)) = SINTH
+        END DO
+
 !
         IKN    = IRANGE(1,NSPEC,NTH)   ! Index vector for elements of 1 ... NK
 !                                      ! such that e.g. SIG(1:NK) = SIG2(IKN).
@@ -4894,6 +4893,34 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         SDENSIG = RESHAPE(S*SIG2/CG2,(/ NTH,NK /))
         CALL LFACTOR(SDENSIG, CINV, UABS(IJ), USTAR(IJ), USDIR(IJ),    &
 &                    ROAIRN(IJ), SIG, DSII, LFACT, TAUWX, TAUWY    )
+        !IF (IJ.EQ.3) THEN
+          !WRITE (IU06,*) '----------------------------------------'
+          !WRITE (IU06,*) '----------------------------------------'
+
+          !WRITE (IU06,*) 'W1=',W1 !JK
+          !WRITE (IU06,*) 'UPROXY=',UPROXY !JK
+          !WRITE (IU06,*) 'ECOS2=',ECOS2 !JK
+          !WRITE (IU06,*) 'COSU=',COSU !JK
+          !WRITE (IU06,*) 'CINV2=',CINV2 !JK
+
+          !WRITE (IU06,*) 'SIZE(COSTH)=',SIZE(COSTH) !JK
+          !WRITE (IU06,*) 'NK=',NK !JK
+          !WRITE (IU06,*) 'NTH=',NTH !JK
+          !WRITE (IU06,*) 'COSTH=',COSTH !JK
+
+          !WRITE (IU06,*) 'W1=',W1 !JK
+          !WRITE (IU06,*) 'D=',D !JK
+          !WRITE (IU06,*) 'S=',S !JK
+          !WRITE (IU06,*) 'SIG2=',SIG2 !JK
+          !WRITE (IU06,*) 'CG2=',CG2 !JK
+
+          !WRITE (IU06,*) 'CGG(IJ,:)=',CGG(IJ,:) !JK
+          !WRITE (IU06,*) 'WN(IJ,:)=',WN(IJ,:) !JK
+          !WRITE (IU06,*) 'CINV(1:NK)=',CINV !JK
+          !WRITE (IU06,*) 'SDENSIG(1,1:NK)=',SDENSIG(1,:) !JK
+          !WRITE (IU06,*) 'TAUWX, TAUWY=',TAUWX,TAUWY
+        !ENDIF
+
 !
 !/ 6) --- apply reduction (LFACT) to the entire spectrum ------------- /
         IF (SUM(LFACT) .LT. NK) THEN
@@ -4926,6 +4953,8 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         SPOS(IJ,:,:) = SL(IJ,:,:) - SDENSIG(:,:) !JK: CHECK: SL=SPOS+SMIN
                                                  !JK         (SDENSIG=SMIN HERE)
         FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /))
+
+        !WRITE (IU06,*) 'LFACT=',LFACT !JK
 
       END DO
       ! END LOOP OVER LOC
@@ -4975,7 +5004,7 @@ REAL,    INTENT(INOUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
 !     ----------------   
 
 INTEGER                :: IJ, M
-INTEGER                :: IK, ITH, IKN(SIZE(F,3))
+INTEGER                :: IK, ITH, IKN(SIZE(F,3)), ITHN(SIZE(F,2))
 
 REAL,    PARAMETER   :: SDS6A1  = 4.75E-6  ! ST6 PARAM
 REAL,    PARAMETER   :: SDS6A2  = 7.00E-5  ! ST6 PARAM
@@ -5137,7 +5166,7 @@ REAL,    INTENT(INOUT)   :: FL(:, :, :)    !! DIAGONAL MATRIX OF FUNCTIONAL
 !     ----------------   
 
 INTEGER                :: IJ, M
-INTEGER                :: IK, ITH, IKN(SIZE(F,3))
+INTEGER                :: IK, ITH, IKN(SIZE(F,3)), ITHN(SIZE(F,2))
 
 REAL,    PARAMETER     :: SWL6B1     = 0.0041    ! ST6 PARAM
 LOGICAL, PARAMETER     :: SWL6CSTB1  = .FALSE.   ! ST6 PARAM
@@ -5294,6 +5323,8 @@ INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML
 INTEGER :: NTH   ! NUMBER OF DIRS , SAME AS KL 
 INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS    
 
+INTEGER :: IK, ITH, IKN(SIZE(S,2)), ITHN(SIZE(S,1))
+
 ! ----------------------------------------------------------------------
 
       NTH   = SIZE(S,1)  ! NUMBER OF DIRS , SAME AS KL
@@ -5316,8 +5347,12 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       ALLOCATE(SDENSY10Hz(NK10Hz))
       ALLOCATE(UCINV10Hz(NK10Hz))
 !
-      ECOS2  = COSTH(1:NSPEC)
-      ESIN2  = SINTH(1:NSPEC)
+      ITHN   = IRANGE(1,NSPEC,NK)    ! Index vector for elements of 1 ... NTH
+      DO IK = 1, NK                    ! Apply to all wavenumbers !JK 
+         ECOS2 (ITHN+(IK-1)) = COSTH
+         ESIN2 (ITHN+(IK-1)) = SINTH
+      END DO
+
 !
 !/ 1) --- Either extrapolate arrays up to 10Hz or use discrete spectral
 !         grid per se. Limit the constraint to the positive part of the
@@ -5388,7 +5423,7 @@ REAL,    INTENT(OUT)   :: CD (:)      !! DRAG COEFFICIENT
 !     ----------------   
 
 INTEGER :: IJ
-REAL, PARAMETER   :: FLX4A0  = 2.E2  ! CDFAC WIND SCALING !JK
+REAL, PARAMETER   :: FLX4A0  = 1. !2.E2  ! CDFAC WIND SCALING !JK
 
 ! ----------------------------------------------------------------------
 
