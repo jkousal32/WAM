@@ -584,12 +584,12 @@ IF (IPHYS .EQ. 1 ) THEN
 &                   INDEP, LLWS)
 ELSEIF (IPHYS .EQ. 2 ) THEN 
 
-   CALL SINPUT_ST6 (FL3, CGG, WN, U10, USTAR, UDIR, ROAIRN, TAUW, TAUNW,   &
-&                   SL, SPOS, FL )
+!   CALL SINPUT_ST6 (FL3, CGG, WN, U10, USTAR, UDIR, ROAIRN, TAUW, TAUNW,   &
+!&                   SL, SPOS, FL )
 
 ! IF ARD:
-!   CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     & !JK
-!&                   INDEP, LLWS)
+   CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     & !JK
+&                   INDEP, LLWS)
 
    !WRITE (IU06,*) 'TAUW (ST6) =',TAUW   !JK
    !WRITE (IU06,*) 'TAUNW (ST6) =',TAUNW !JK
@@ -610,11 +610,11 @@ ENDIF
 ! re-evalute the input
 IF (IPHYS .EQ. 2 ) THEN
 
-   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP) ! DUMMY OUTPUT TAUW
+!   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP) ! DUMMY OUTPUT TAUW
    !WRITE (IU06,*) 'TAUW_DUMMY (STRESSO) =',TAUW ! JK
 
 ! IF ARD:
-!   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) ! JK
+   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) ! JK
 
    CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
 ELSE
@@ -630,8 +630,8 @@ IF (IPHYS .EQ. 1 ) THEN
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
 ELSEIF (IPHYS .EQ. 2 ) THEN ! SINPUT ITERATION NOT NEEDED FOR ST6
 ! IF ARD:
-!   CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     & !JK
-!&                   INDEP, LLWS)
+   CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     & !JK
+&                   INDEP, LLWS)
 
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:) 
 ELSE
@@ -643,10 +643,10 @@ ENDIF
 IF (IPHYS .EQ. 2 ) THEN ! JK: ALTHOUGH FL3 NOT UPDATED SINCE LAST CALL FOR IPHYS=2,
                         ! JK  USTAR AND Z0 HAVE -> CALL AGAIN TO UPDATE PHIAW (?)
 
-   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP)
+!   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP)
 
 ! IF ARD:
-!   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) ! JK
+   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) ! JK
 
    ! JK: TAUW CALC NOT NEEDED HERE AS IS DONE IN SINPUT_ST6 CALL
 ELSE
@@ -4626,8 +4626,8 @@ INTEGER :: IK, ITH, IKN(SIZE(S,2)), ITHN(SIZE(S,1))
 !         wind input only. ---------------------------------------------- /
       IF (NK .LT. NK10Hz) THEN
          SDENS10Hz(1:NK)         = SUM(S,1) * DELTH
-         SDENSX10Hz(1:NK)        = SUM(MAX(0.,S)*RESHAPE(ECOS2,(/NTH,NK/)),1) * DELTH
-         SDENSY10Hz(1:NK)        = SUM(MAX(0.,S)*RESHAPE(ESIN2,(/NTH,NK/)),1) * DELTH
+         SDENSX10Hz(1:NK)        = SUM(MAX(0.,S)*RESHAPE(ECOS2,(/NTH,NK/),ORDER = (/2, 1/)),1) * DELTH
+         SDENSY10Hz(1:NK)        = SUM(MAX(0.,S)*RESHAPE(ESIN2,(/NTH,NK/),ORDER = (/2, 1/)),1) * DELTH
          SIG10Hz                 = SIG(1)*CO**(IK10Hz-1.0)
          CINV10Hz(1:NK)          = CINV
          CINV10Hz(NK+1:NK10Hz)   = SIG10Hz(NK+1:NK10Hz)*0.101978 ! 1/c=σ/g
@@ -4645,8 +4645,8 @@ INTEGER :: IK, ITH, IKN(SIZE(S,2)), ITHN(SIZE(S,1))
          CINV10Hz         = CINV
          DSII10Hz         = DSII
          SDENS10Hz(1:NK)  = SUM(S,1) * DELTH
-         SDENSX10Hz(1:NK) = SUM(MAX(0.,S)*RESHAPE(ECOS2,(/NTH,NK/)),1) * DELTH
-         SDENSY10Hz(1:NK) = SUM(MAX(0.,S)*RESHAPE(ESIN2,(/NTH,NK/)),1) * DELTH
+         SDENSX10Hz(1:NK) = SUM(MAX(0.,S)*RESHAPE(ECOS2,(/NTH,NK/),ORDER = (/2,1/)),1) * DELTH
+         SDENSY10Hz(1:NK) = SUM(MAX(0.,S)*RESHAPE(ESIN2,(/NTH,NK/),ORDER = (/2,1/)),1) * DELTH
       END IF
 !
 !/ 2) --- Stress calculation ----------------------------------------- /
@@ -4836,8 +4836,6 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 
         A      = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
 &                         , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-!        A      = RESHAPE(F(IJ,:,:), (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-
 
         IF (IJ.EQ.3) THEN
           WRITE (IU06,*) '----------------------------------------'
@@ -4850,6 +4848,8 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
           K      = RESHAPE(A,(/ NTH, NK /),ORDER = (/2, 1/))
           WRITE (IU06,*) 'K (rev )=',K !JK
         ENDIF
+
+
         COSU   = COS(USDIR(IJ))
         SINU   = SIN(USDIR(IJ))
 !
@@ -4893,7 +4893,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/ 1) --- calculate 1d action density spectrum (A(sigma)) and
 !/        zero-out values less than 1.0E-32 to avoid NaNs when
 !/        computing directional narrowness in step 4). --------------- /
-        K      = RESHAPE(A,(/ NTH, NK /))
+        K      = RESHAPE(A,(/ NTH, NK /),ORDER = (/2, 1/))
 
         ADENSIG = SUM(K,1) * SIG * DELTH ! Integrate over directions.
 !
@@ -4929,7 +4929,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/ 5) --- calculate reduction factor LFACT using non-directional
 !         spectral density of the wind input ------------------------- /
         CINV    = CINV2(IKN)
-        SDENSIG = RESHAPE(S*SIG2/CG2,(/ NTH,NK /))
+        SDENSIG = RESHAPE(S*SIG2/CG2,(/ NTH,NK /),ORDER = (/2, 1/))
 
         CALL LFACTOR(SDENSIG, CINV, UABS(IJ), USTAR(IJ), USDIR(IJ),    &
 &                    ROAIRN(IJ), SIG, DSII, LFACT, TAUWX, TAUWY    )
@@ -4984,17 +4984,17 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
           S     = D * A
 !     --- compute negative component of the wave supported stresses
 !         from negative part of the wind input  ---------------------- /
-          SDENSIG = RESHAPE(S*SIG2/CG2,(/ NTH,NK /))
+          SDENSIG = RESHAPE(S*SIG2/CG2,(/ NTH,NK /),ORDER = (/2, 1/))
           CALL TAU_WAVE_ATMOS(SDENSIG, CINV, SIG, DSII, TAUNWX, TAUNWY )
         END IF
 !
 
         TAUW(IJ)  = SQRT(TAUWX**2+TAUWY**2) 
         TAUNW(IJ) = SQRT(TAUNWX**2+TAUNWY**2) 
-        SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /))
+        SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /),ORDER = (/2, 1/))
         SPOS(IJ,:,:) = SL(IJ,:,:) - SDENSIG(:,:) !JK: CHECK: SL=SPOS+SMIN
                                                  !JK         (SDENSIG=SMIN HERE)
-        FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /))
+        FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /),ORDER = (/2, 1/))
 
         !WRITE (IU06,*) 'LFACT=',LFACT !JK
 
@@ -5091,10 +5091,8 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
 
-!        A      = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
-!&                         , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-        A      = RESHAPE(F(IJ,:,:), (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-
+        A      = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
+&                         , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
 
 
 !/ 0) --- Initialize essential parameters ---------------------------- /
@@ -5111,7 +5109,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/ 1) --- Calculate threshold spectral density, spectral density, and
 !/        the level of exceedence EXDENS(f) -------------------------- /
         ETDENS  = ( ZPI * BNT ) / ( ANAR * CGG(IJ,:) * WN(IJ,:)**3 )
-        EDENS   = SUM(RESHAPE(A,(/ NTH,NK /)),1) * ZPI * SIG * DELTH / CGG(IJ,:)  !E(f)
+        EDENS   = SUM(F(IJ,:,:),1) * ZPI * SIG * DELTH / CGG(IJ,:)  !E(f)
         EXDENS  = MAX(0.0,EDENS-ETDENS)
 !
 !/    --- normalise by a generic spectral density -------------------- /
@@ -5162,7 +5160,9 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !        FL(IJ,:,:) = FL(IJ,:,:) + RESHAPE(D,(/ NTH,NK /))
 
 
+        !DDS = RESHAPE(D,(/NTH,NK/),ORDER = (/2, 1/))
         DDS = RESHAPE(D,(/NTH,NK/))
+
         DO IK = 1,NK
           DO ITH = 1, NTH
             SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DDS(ITH,IK)*F(IJ,ITH,IK)
@@ -5242,16 +5242,15 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
 
-!        A      = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
-!&                         , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-        A      = RESHAPE(F(IJ,:,:), (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+        A      = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
+&                         , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
 
 
 
 !/ 0) --- Initialize parameters -------------------------------------- /
         IKN   = IRANGE(1,NSPEC,NTH)            ! Index vector for array access, e.g.  
                                                ! in form of WN(1:NK) == WN2(IKN).
-        ABAND = SUM(RESHAPE(A,(/ NTH,NK /)),1) ! action density as function of wavenumber
+        ABAND = SUM(RESHAPE(A,(/ NTH,NK /),ORDER = (/2, 1/)),1) ! action density as function of wavenumber
         DDIS  = 0.
         D     = 0.
         B1    = SWL6B1                         ! empirical constant from NAMELIST
@@ -5259,7 +5258,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/ 1) --- Choose calculation of steepness a*k ------------------------ /
 !/        Replace the measure of steepness with the spectral
 !         saturation after Banner et al. (2002) ---------------------- /
-        K     = RESHAPE(A,(/ NTH,NK /))
+        K     = RESHAPE(A,(/ NTH,NK /),ORDER = (/2, 1/))
         KMAX  = MAXVAL(K,1)
         DO IK = 1,NK
            IF (KMAX(IK).LT.1.0E-34) THEN
@@ -5305,8 +5304,9 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !       WRITE(*,*) ' '
 !       WRITE(*,*) ' SWL6_tot =',sum(SUM(RESHAPE(S,(/ NTH,NK /)),1)*DDEN/CG)
 
-        !SSWL = RESHAPE(S,(/NTH,NK/)) ! JK
+        !DSWL = RESHAPE(D,(/NTH,NK/),ORDER = (/2, 1/))
         DSWL = RESHAPE(D,(/NTH,NK/))
+
         DO IK = 1,NK
           DO ITH = 1, NTH
             SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DSWL(ITH,IK)*F(IJ,ITH,IK)
@@ -5407,8 +5407,8 @@ INTEGER :: IK, ITH, IKN(SIZE(S,2)), ITHN(SIZE(S,1))
 !         grid per se. Limit the constraint to the positive part of the
 !         wind input only. ---------------------------------------------- /
       IF (NK .LT. NK10Hz) THEN
-         SDENSX10Hz(1:NK)        = SUM(ABS(MIN(0.,S))*RESHAPE(ECOS2,(/NTH,NK/)),1) * DELTH
-         SDENSY10Hz(1:NK)        = SUM(ABS(MIN(0.,S))*RESHAPE(ESIN2,(/NTH,NK/)),1) * DELTH
+         SDENSX10Hz(1:NK)        = SUM(ABS(MIN(0.,S))*RESHAPE(ECOS2,(/NTH,NK/),ORDER = (/2, 1/)),1) * DELTH
+         SDENSY10Hz(1:NK)        = SUM(ABS(MIN(0.,S))*RESHAPE(ESIN2,(/NTH,NK/),ORDER = (/2, 1/)),1) * DELTH
          SIG10Hz                 = SIG(1)*CO**(IK10Hz-1.0)
          CINV10Hz(1:NK)          = CINV
          CINV10Hz(NK+1:NK10Hz)   = SIG10Hz(NK+1:NK10Hz)*0.101978
@@ -5424,8 +5424,8 @@ INTEGER :: IK, ITH, IKN(SIZE(S,2)), ITHN(SIZE(S,1))
          SIG10Hz          = SIG
          CINV10Hz         = CINV
          DSII10Hz         = DSII
-         SDENSX10Hz(1:NK) = SUM(ABS(MIN(0.,S))*RESHAPE(ECOS2,(/NTH,NK/)),1) * DELTH
-         SDENSY10Hz(1:NK) = SUM(ABS(MIN(0.,S))*RESHAPE(ESIN2,(/NTH,NK/)),1) * DELTH
+         SDENSX10Hz(1:NK) = SUM(ABS(MIN(0.,S))*RESHAPE(ECOS2,(/NTH,NK/),ORDER = (/2, 1/)),1) * DELTH
+         SDENSY10Hz(1:NK) = SUM(ABS(MIN(0.,S))*RESHAPE(ESIN2,(/NTH,NK/),ORDER = (/2, 1/)),1) * DELTH
       END IF
 !
 !/ 2) --- Stress calculation ----------------------------------------- /
