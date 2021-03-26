@@ -583,8 +583,14 @@ IF (IPHYS .EQ. 1 ) THEN
    CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
 ELSEIF (IPHYS .EQ. 2 ) THEN 
+
    CALL SINPUT_ST6 (FL3, CGG, WN, U10, USTAR, UDIR, ROAIRN, TAUW, TAUNW,   &
 &                   SL, SPOS, FL )
+
+! IF ARD:
+!   CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     & !JK
+!&                   INDEP, LLWS)
+
    !WRITE (IU06,*) 'TAUW (ST6) =',TAUW   !JK
    !WRITE (IU06,*) 'TAUNW (ST6) =',TAUNW !JK
 ELSE
@@ -603,8 +609,13 @@ ENDIF
 
 ! re-evalute the input
 IF (IPHYS .EQ. 2 ) THEN
+
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP) ! DUMMY OUTPUT TAUW
    !WRITE (IU06,*) 'TAUW_DUMMY (STRESSO) =',TAUW ! JK
+
+! IF ARD:
+!   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) ! JK
+
    CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) 
@@ -618,6 +629,10 @@ IF (IPHYS .EQ. 1 ) THEN
 &                   INDEP, LLWS)
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
 ELSEIF (IPHYS .EQ. 2 ) THEN ! SINPUT ITERATION NOT NEEDED FOR ST6
+! IF ARD:
+!   CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     & !JK
+!&                   INDEP, LLWS)
+
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:) 
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
@@ -627,7 +642,12 @@ ENDIF
 
 IF (IPHYS .EQ. 2 ) THEN ! JK: ALTHOUGH FL3 NOT UPDATED SINCE LAST CALL FOR IPHYS=2,
                         ! JK  USTAR AND Z0 HAVE -> CALL AGAIN TO UPDATE PHIAW (?)
+
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP)
+
+! IF ARD:
+!   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) ! JK
+
    ! JK: TAUW CALC NOT NEEDED HERE AS IS DONE IN SINPUT_ST6 CALL
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP)
@@ -4808,10 +4828,28 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 
 !/ 0) --- set up a basic variables ----------------------------------- /
     
-        ! To reshape from 1D to 2D: K = RESHAPE(A,(/ NTH,NK /))
-        ! To reshape from 2D to 1D: A = RESHAPE(K,(/ NSPEC /))
-        A      = RESHAPE(F(IJ,:,:),(/NSPEC/))  ! ACTION DENSITY SPECTRUM
+        ! To reshape from 1D to 2D: 
+        !    K = RESHAPE(A,(/ NTH, NK /),ORDER = (/2, 1/))
+        ! To reshape from 2D to 1D:
+        !    A = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
+        !   &                               , (/NSPEC/))
 
+        A      = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
+&                         , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+!        A      = RESHAPE(F(IJ,:,:), (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+
+
+        IF (IJ.EQ.3) THEN
+          WRITE (IU06,*) '----------------------------------------'
+          WRITE (IU06,*) '----------------------------------------'
+          WRITE (IU06,*) 'F(IJ,:,:)=',F(IJ,:,:) !JK
+
+          K       = RESHAPE(A,(/ NTH,NK /))
+          WRITE (IU06,*) 'K (norm)=',K !JK
+
+          K      = RESHAPE(A,(/ NTH, NK /),ORDER = (/2, 1/))
+          WRITE (IU06,*) 'K (rev )=',K !JK
+        ENDIF
         COSU   = COS(USDIR(IJ))
         SINU   = SIN(USDIR(IJ))
 !
@@ -4855,7 +4893,8 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/ 1) --- calculate 1d action density spectrum (A(sigma)) and
 !/        zero-out values less than 1.0E-32 to avoid NaNs when
 !/        computing directional narrowness in step 4). --------------- /
-        K       = RESHAPE(A,(/ NTH,NK /))
+        K      = RESHAPE(A,(/ NTH, NK /))
+
         ADENSIG = SUM(K,1) * SIG * DELTH ! Integrate over directions.
 !
 !/ 2) --- calculate normalised directional spectrum K(theta,sigma) --- /
@@ -4891,6 +4930,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !         spectral density of the wind input ------------------------- /
         CINV    = CINV2(IKN)
         SDENSIG = RESHAPE(S*SIG2/CG2,(/ NTH,NK /))
+
         CALL LFACTOR(SDENSIG, CINV, UABS(IJ), USTAR(IJ), USDIR(IJ),    &
 &                    ROAIRN(IJ), SIG, DSII, LFACT, TAUWX, TAUWY    )
         !IF (IJ.EQ.3) THEN
@@ -4899,6 +4939,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 
           !WRITE (IU06,*) 'W1=',W1 !JK
           !WRITE (IU06,*) 'UPROXY=',UPROXY !JK
+          !WRITE (IU06,*) 'CG2=',CG2 !JK
           !WRITE (IU06,*) 'ECOS2=',ECOS2 !JK
           !WRITE (IU06,*) 'COSU=',COSU !JK
           !WRITE (IU06,*) 'CINV2=',CINV2 !JK
@@ -4908,16 +4949,17 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
           !WRITE (IU06,*) 'NTH=',NTH !JK
           !WRITE (IU06,*) 'COSTH=',COSTH !JK
 
-          !WRITE (IU06,*) 'W1=',W1 !JK
+          !WRITE (IU06,*) 'ROAIRN(IJ)=',ROAIRN(IJ) !JK
+          !WRITE (IU06,*) 'F(IJ,:,:)=',F(IJ,:,:) !JK
+          !WRITE (IU06,*) 'A=',A !JK
           !WRITE (IU06,*) 'D=',D !JK
           !WRITE (IU06,*) 'S=',S !JK
-          !WRITE (IU06,*) 'SIG2=',SIG2 !JK
           !WRITE (IU06,*) 'CG2=',CG2 !JK
 
           !WRITE (IU06,*) 'CGG(IJ,:)=',CGG(IJ,:) !JK
           !WRITE (IU06,*) 'WN(IJ,:)=',WN(IJ,:) !JK
           !WRITE (IU06,*) 'CINV(1:NK)=',CINV !JK
-          !WRITE (IU06,*) 'SDENSIG(1,1:NK)=',SDENSIG(1,:) !JK
+          !WRITE (IU06,*) 'SDENSIG=',SDENSIG !JK
           !WRITE (IU06,*) 'TAUWX, TAUWY=',TAUWX,TAUWY
         !ENDIF
 
@@ -5049,7 +5091,11 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
 
-        A       = RESHAPE(F(IJ,:,:),(/NSPEC/))  ! ACTION DENSITY SPECTRUM
+!        A      = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
+!&                         , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+        A      = RESHAPE(F(IJ,:,:), (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+
+
 
 !/ 0) --- Initialize essential parameters ---------------------------- /
         IKN     = IRANGE(1,NSPEC,NTH)    ! Index vector for elements of 1,
@@ -5116,7 +5162,6 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !        FL(IJ,:,:) = FL(IJ,:,:) + RESHAPE(D,(/ NTH,NK /))
 
 
-        !SDS = RESHAPE(S,(/NTH,NK/)) JK
         DDS = RESHAPE(D,(/NTH,NK/))
         DO IK = 1,NK
           DO ITH = 1, NTH
@@ -5197,7 +5242,11 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
 
-        A       = RESHAPE(F(IJ,:,:),(/NSPEC/))  ! ACTION DENSITY SPECTRUM
+!        A      = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
+!&                         , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+        A      = RESHAPE(F(IJ,:,:), (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+
+
 
 !/ 0) --- Initialize parameters -------------------------------------- /
         IKN   = IRANGE(1,NSPEC,NTH)            ! Index vector for array access, e.g.  
