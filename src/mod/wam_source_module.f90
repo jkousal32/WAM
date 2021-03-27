@@ -5399,7 +5399,10 @@ REAL,    INTENT(OUT)   :: CD (:)      !! DRAG COEFFICIENT
 !     ----------------   
 
 INTEGER :: IJ
-REAL, PARAMETER   :: FLX4A0  = 1. !2.E2  ! CDFAC WIND SCALING !JK
+REAL, PARAMETER   :: FLX4A0  = 1.13 ! CDFAC WIND SCALING (~BETAMAX FOR ST6)
+                                    ! QL finds 1.08 best based on recent ST6 testing 
+                                    ! - what winds were used?
+                                    ! 1.13 - 1.16 ~matches IPHYS=0
 
 ! ----------------------------------------------------------------------
 
