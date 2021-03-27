@@ -571,8 +571,6 @@ END IF
 !     3. COMPUTATION OF SOURCE FUNCTIONS AND DERIVATIVES.                  !
 !        ------------------------------------------------                  !
 
-!WRITE (IU06,*) 'TAUW (WAM) =',TAUW !JK
-
 IF (IPHYS .EQ. 2 ) THEN
    CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
 ELSE
@@ -586,13 +584,6 @@ ELSEIF (IPHYS .EQ. 2 ) THEN
 
    CALL SINPUT_ST6 (FL3, CGG, WN, U10, USTAR, UDIR, ROAIRN, TAUW, TAUNW,   &
 &                   SL, SPOS, FL )
-
-! IF ARD:
-!   CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     & !JK
-!&                   INDEP, LLWS)
-
-   !WRITE (IU06,*) 'TAUW (ST6) =',TAUW   !JK
-   !WRITE (IU06,*) 'TAUNW (ST6) =',TAUNW !JK
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
@@ -609,13 +600,7 @@ ENDIF
 
 ! re-evalute the input
 IF (IPHYS .EQ. 2 ) THEN
-
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP) ! DUMMY OUTPUT TAUW
-   !WRITE (IU06,*) 'TAUW_DUMMY (STRESSO) =',TAUW ! JK
-
-! IF ARD:
-!   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) ! JK
-
    CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) 
@@ -628,11 +613,8 @@ IF (IPHYS .EQ. 1 ) THEN
    CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
-ELSEIF (IPHYS .EQ. 2 ) THEN ! SINPUT ITERATION NOT NEEDED FOR ST6
-! IF ARD:
-!   CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     & !JK
-!&                   INDEP, LLWS)
-
+ELSEIF (IPHYS .EQ. 2 ) THEN 
+   !!! SINPUT_ST6 ITERATION NOT NEEDED
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:) 
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
@@ -641,14 +623,9 @@ ELSE
 ENDIF
 
 IF (IPHYS .EQ. 2 ) THEN ! JK: ALTHOUGH FL3 NOT UPDATED SINCE LAST CALL FOR IPHYS=2,
-                        ! JK  USTAR AND Z0 HAVE -> CALL AGAIN TO UPDATE PHIAW (?)
-
+                        ! JK  USTAR AND Z0 HAVE -> CALL STRESSO AGAIN TO UPDATE PHIAW (?)
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP)
-
-! IF ARD:
-!   CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) ! JK
-
-   ! JK: TAUW CALC NOT NEEDED HERE AS IS DONE IN SINPUT_ST6 CALL
+   ! TAUW CALC NOT NEEDED HERE (DONE IN SINPUT_ST6)
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP)
 ENDIF
@@ -4830,36 +4807,10 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/ 0) --- set up a basic variables ----------------------------------- /
     
         ! To reshape from 1D to 2D: 
-        !    K = RESHAPE(A,(/ NTH, NK /),ORDER = (/2, 1/))
+        !    K = RESHAPE( A          , (/ NTH, NK /))
         ! To reshape from 2D to 1D:
-        !    A = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
-        !   &                               , (/NSPEC/))
-
-!        A      = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
-!&                         , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-        !A      = RESHAPE( TRANSPOSE(F(IJ,:,:)) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-        A      = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-
-!        IF (IJ.EQ.3) THEN
-!          WRITE (IU06,*) '----------------------------------------'
-!          WRITE (IU06,*) '----------------------------------------'
-!          WRITE (IU06,*) 'F(IJ,:,:)=',F(IJ,:,:) !JK
-
-!          A      = RESHAPE( TRANSPOSE(F(IJ,:,:)) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-!          WRITE (IU06,*) 'A2=',A !JK
-
-!          A      = RESHAPE( (RESHAPE(F(IJ,:,:),(/ NK,NTH /),ORDER = (/2, 1/)))&
-!&                           , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-!          WRITE (IU06,*) 'A1=',A !JK
-
-
-        !  K       = RESHAPE(A,(/ NTH,NK /))
-        !  WRITE (IU06,*) 'K (norm)=',K !JK
-
-        !  K      = RESHAPE(A,(/ NTH, NK /),ORDER = (/2, 1/))
-        !  WRITE (IU06,*) 'K (rev )=',K !JK
-!        ENDIF
-
+        !    A = RESHAPE( F(IJ,:,:)  , (/NSPEC/)    )
+        A = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
 
         COSU   = COS(USDIR(IJ))
         SINU   = SIN(USDIR(IJ))
@@ -4888,15 +4839,11 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
            ESIN2 (ITHN+(IK-1)*NTH) = SINTH
         END DO
 
-!        IF (IJ.EQ.3) THEN
-!          WRITE (IU06,*) 'COSTH=',COSTH !JK
-!          WRITE (IU06,*) 'ECOS2 (1)=',ECOS2 !JK
-!        ENDIF
 !
         IKN    = IRANGE(1,NSPEC,NTH)   ! Index vector for elements of 1 ... NK
 !                                      ! such that e.g. SIG(1:NK) = SIG2(IKN).
 
-        DO ITH = 1, NTH                    ! Apply to all directions !JK CHECK THIS
+        DO ITH = 1, NTH                    ! Apply to all directions 
            DSII2 (IKN+(ITH-1)) = DSII    
            SIG2  (IKN+(ITH-1)) = SIG
            WN2   (IKN+(ITH-1)) = WN(IJ,:)
@@ -4948,35 +4895,6 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 
         CALL LFACTOR(SDENSIG, CINV, UABS(IJ), USTAR(IJ), USDIR(IJ),    &
 &                    ROAIRN(IJ), SIG, DSII, LFACT, TAUWX, TAUWY    )
-        !IF (IJ.EQ.3) THEN
-          !WRITE (IU06,*) '----------------------------------------'
-          !WRITE (IU06,*) '----------------------------------------'
-
-          !WRITE (IU06,*) 'W1=',W1 !JK
-          !WRITE (IU06,*) 'UPROXY=',UPROXY !JK
-          !WRITE (IU06,*) 'CG2=',CG2 !JK
-          !WRITE (IU06,*) 'ECOS2=',ECOS2 !JK
-          !WRITE (IU06,*) 'COSU=',COSU !JK
-          !WRITE (IU06,*) 'CINV2=',CINV2 !JK
-
-          !WRITE (IU06,*) 'SIZE(COSTH)=',SIZE(COSTH) !JK
-          !WRITE (IU06,*) 'NK=',NK !JK
-          !WRITE (IU06,*) 'NTH=',NTH !JK
-          !WRITE (IU06,*) 'COSTH=',COSTH !JK
-
-          !WRITE (IU06,*) 'ROAIRN(IJ)=',ROAIRN(IJ) !JK
-          !WRITE (IU06,*) 'F(IJ,:,:)=',F(IJ,:,:) !JK
-          !WRITE (IU06,*) 'A=',A !JK
-          !WRITE (IU06,*) 'D=',D !JK
-          !WRITE (IU06,*) 'S=',S !JK
-          !WRITE (IU06,*) 'CG2=',CG2 !JK
-
-          !WRITE (IU06,*) 'CGG(IJ,:)=',CGG(IJ,:) !JK
-          !WRITE (IU06,*) 'WN(IJ,:)=',WN(IJ,:) !JK
-          !WRITE (IU06,*) 'CINV(1:NK)=',CINV !JK
-          !WRITE (IU06,*) 'SDENSIG=',SDENSIG !JK
-          !WRITE (IU06,*) 'TAUWX, TAUWY=',TAUWX,TAUWY
-        !ENDIF
 
 !
 !/ 6) --- apply reduction (LFACT) to the entire spectrum ------------- /
@@ -5007,30 +4925,9 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         TAUW(IJ)  = SQRT(TAUWX**2+TAUWY**2) 
         TAUNW(IJ) = SQRT(TAUNWX**2+TAUNWY**2) 
         SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /))
-        !SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /),ORDER = (/2, 1/))
-
         SPOS(IJ,:,:) = SL(IJ,:,:) - SDENSIG(:,:) !JK: CHECK: SL=SPOS+SMIN
                                                  !JK         (SDENSIG=SMIN HERE)
         FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /))
-        !FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /),ORDER = (/2, 1/))
-        !FL(IJ,:,:) = RESHAPE(RESHAPE(D,(/ NK,NTH /))            &
-        !&                      , (/ NTH,NK /),ORDER = (/2, 1/))
-
-
-        !IF (IJ.EQ.3) THEN
-        !  WRITE (IU06,*) '----------------------------------------'
-        !  WRITE (IU06,*) '----------------------------------------'
-        !  WRITE (IU06,*) 'ECOS2=',ECOS2 !JK
-
-          !WRITE (IU06,*) '      F(IJ,:,:)=',F(IJ,:,:) !JK
-          !WRITE (IU06,*) 'REV : SL(IJ,:,:)=',SL(IJ,:,:) !JK
-          !WRITE (IU06,*) 'REV : FL(IJ,:,:)=',FL(IJ,:,:) !JK
-          !WRITE (IU06,*) 'NORM: SL(IJ,:,:)=',RESHAPE(S,(/ NTH,NK /)) !JK
-          !WRITE (IU06,*) 'REV2: FL(IJ,:,:)=',RESHAPE(RESHAPE(D,(/ NK,NTH /))&
-          !           &                      , (/ NTH,NK /),ORDER = (/2, 1/))
-          !WRITE (IU06,*) 'REV3: FL(IJ,:,:)=',TRANSPOSE(RESHAPE(D,(/ NK,NTH /)))
-
-        !ENDIF
 
       END DO
       ! END LOOP OVER LOC
@@ -5104,7 +5001,7 @@ REAL              :: T12(SIZE(F,3))      ! = T1+T2 or combined dissipation
 REAL              :: ADF(SIZE(F,3)), XFAC, EDENSMAX ! temp. variables
 
 REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))  :: S, D, A    
-REAL, DIMENSION(SIZE(F,2),SIZE(F,3))  :: DDS!, SDS ! JK
+REAL, DIMENSION(SIZE(F,2),SIZE(F,3))  :: DDS
 
 
 INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
@@ -5254,7 +5151,7 @@ REAL, DIMENSION(SIZE(F,3))             :: SIG, DDEN
 REAL, DIMENSION(SIZE(F,2),SIZE(F,3))   :: K
 REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))   :: S, D, A
 REAL                                   :: B1
-REAL, DIMENSION(SIZE(F,2),SIZE(F,3))   :: DSWL !, SSWL, !JK
+REAL, DIMENSION(SIZE(F,2),SIZE(F,3))   :: DSWL 
 
 
 INTEGER :: NK    ! NUMBER OF FREQS, SAME AS ML 
@@ -5269,7 +5166,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 
       DO M = 1,SIZE(F,3)
         SIG(M)  = ZPI*FR(M)
-        DDEN(M) = ZPI*DFIM(M)*SIG(M) ! JK: CHECK THIS
+        DDEN(M) = ZPI*DFIM(M)*SIG(M) 
       END DO
 
       ! LOOP OVER LOCATIONS
