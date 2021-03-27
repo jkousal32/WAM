@@ -12,6 +12,9 @@
 cd /pf/b/b381438/WAM/mk
 ./create_binaries
 
+# --------------- Check/modify namelist settings ----------------
+v /pf/b/b381438/WAM/const/Coarse_Grid/JAN/WAM_User 
+
 # ------------------------ Run ----------------
 
 cd /pf/b/b381438/WAM/jkousal_jobs

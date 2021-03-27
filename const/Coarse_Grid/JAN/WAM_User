@@ -87,7 +87,7 @@ C    ITEST   > 0: OUPUT UPTO SUBROUTINE LEVEL;    0: NO TEST OUTPUT (DEFAULT)
 C
 C  IPHYS    BREAK    PHILL     ISNL    ITEST
 C-------  -------  -------  -------  -------
-       0        F        F        0       10
+       2        F        F        0       10
 C
 C   BETAMAX  REAL PARAMETER FOR WIND INPUT REAL; (DEFAULT 1.20)
 C
