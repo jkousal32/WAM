@@ -5433,8 +5433,7 @@ END SUBROUTINE W3FLX4
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE FRCUTINDEX_ST6(F, FMEAN, USTAR, MIJ) ! JK: MIJ is lower here (by 1) than from
-                                                ! JK  regular FRCUTINDEX, issue?
+SUBROUTINE FRCUTINDEX_ST6(F, FMEAN, USTAR, MIJ)
 
 ! ----------------------------------------------------------------------
 !
