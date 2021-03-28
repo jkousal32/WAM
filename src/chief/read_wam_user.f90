@@ -221,6 +221,10 @@ IF (LINE(2:11).NE.' ') THEN
    READ(LINE(2:11),'(F10.4)',IOSTAT=IOS) BETAMAX
    IF (IOS.NE.0) CALL ERROR_MESSAGE('BETAMAX')
 END IF
+IF (LINE(13:18).NE.' ') THEN
+   READ(LINE(13:18),'(F10.4)',IOSTAT=IOS) CDFAC
+   IF (IOS.NE.0) CALL ERROR_MESSAGE('CDFAC')
+END IF
 
 ! ---------------------------------------------------------------------------- !
 !                                                                              !

@@ -61,6 +61,7 @@ REAL, PARAMETER :: XEPS = ROAIR/ROWATER
 REAL, PARAMETER :: XINVEPS = 1./XEPS
 
 REAL            :: BETAMAX = 1.20       !! PARAMETER FOR WIND INPUT (ECMWF CY45R1).
+REAL            :: CDFAC   = 1.13       !! PARAMETER FOR WIND INPUT (ST6).
 REAL            :: ZALP    = 0.0080     !! SHIFTS GROWTH CURVE (ECMWF CY45R1).
 REAL            :: ALPHA   = 0.0060     !! MINIMUM CHARNOCK CONSTANT (ECMWF CY45R1).
                                         !! if LE 30 frequencies changed
@@ -2234,6 +2235,7 @@ WRITE(IU06,*) ' WATER DENSITY ........................... ROWATER = ', ROWATER
 WRITE(IU06,*) ' ROAIR/ROWATER............................... XEPS = ',  XEPS
 WRITE(IU06,*) ' 1./XEPS ................................. XINVEPS = ', XINVEPS
 WRITE(IU06,*) ' PARAMETER FOR WIND INPUT ................ BETAMAX = ', BETAMAX
+WRITE(IU06,*) ' PARAMETER FOR ST6 WIND INPUT .............. CDFAC = ', CDFAC
 WRITE(IU06,*) ' SHIFTS GROWTH CURVE ........................ ZALP = ', ZALP
 WRITE(IU06,*) ' MINIMUM CHARNOCK CONSTANT ................. ALPHA = ', ALPHA
 WRITE(IU06,*) ' SHELTERING COEFFICIENT .............. TAUWSHELTER = ', TAUWSHELTER
@@ -2256,11 +2258,12 @@ END SUBROUTINE PRINT_GENERAL_MODULE
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE SET_GENERAL_MODULE (B_MAX)
+SUBROUTINE SET_GENERAL_MODULE (B_MAX,CDFAC1)
 
-REAL, INTENT(IN) :: B_MAX
+REAL, INTENT(IN) :: B_MAX, CDFAC1
 
 BETAMAX = B_MAX
+CDFAC   = CDFAC1
 
 END SUBROUTINE SET_GENERAL_MODULE
 

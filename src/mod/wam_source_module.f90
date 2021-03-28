@@ -37,7 +37,7 @@ USE WAM_GENERAL_MODULE, ONLY:    &
 
 USE WAM_GENERAL_MODULE, ONLY: G, PI, ZPI, DEG, ROAIR, RNUAIR, RNUAIRM, ROWATER,&
 &                             RAD, XEPS, XNLEV, XINVEPS, XKAPPA,               &
-&                             ALPHA,     BETAMAX,    ZALP,    TAUWSHELTER,     &
+&                             ALPHA, BETAMAX, CDFAC, ZALP,    TAUWSHELTER,     &
 &                             SDSBR, ISDSDTH , ISB, IPSAT, SSDSC2, SSDSC4,     &
 &                             SSDSC6,  MICHE, SSDSC3, SSDSBRF1, BRKPBCOEF,     &
 &                             SSDSC5
@@ -572,7 +572,7 @@ END IF
 !        ------------------------------------------------                  !
 
 IF (IPHYS .EQ. 2 ) THEN
-   CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
+   CALL W3FLX4 ( XNLEV, U10, UDIR, CDFAC, USTAR, USTARD, Z0, CD )
 ELSE
    CALL AIRSEA (U10, TAUW, USTAR, Z0) 
 ENDIF
@@ -601,7 +601,7 @@ ENDIF
 ! re-evalute the input
 IF (IPHYS .EQ. 2 ) THEN
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP) ! DUMMY OUTPUT TAUW
-   CALL W3FLX4 ( XNLEV, U10, UDIR, USTAR, USTARD, Z0, CD )
+   CALL W3FLX4 ( XNLEV, U10, UDIR, CDFAC, USTAR, USTARD, Z0, CD )
 ELSE
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW, PHIAW, INDEP) 
    CALL AIRSEA (U10, TAUW, USTAR, Z0)
@@ -5365,7 +5365,7 @@ END SUBROUTINE TAU_WAVE_ATMOS
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
-SUBROUTINE W3FLX4 ( ZWND, U10, U10D, UST, USTD, Z0, CD )
+SUBROUTINE W3FLX4 ( ZWND, U10, U10D, CDFAC, UST, USTD, Z0, CD )
 
 ! ----------------------------------------------------------------------
 !
@@ -5386,6 +5386,7 @@ SUBROUTINE W3FLX4 ( ZWND, U10, U10D, UST, USTD, Z0, CD )
 REAL,    INTENT(IN)    :: ZWND           !! WIND HEIGHT (XNLEV)
 REAL,    INTENT(IN)    :: U10  (:)       !! WIND SPEED  (AT XNLEV)
 REAL,    INTENT(IN)    :: U10D (:)       !! WIND DIRECTION.
+REAL,    INTENT(IN)    :: CDFAC          !! WIND SCALING FACTOR
 
 REAL,    INTENT(OUT)   :: UST (:)     !! FRICTION VELOCITY.
 REAL,    INTENT(OUT)   :: USTD (:)    !! FRICTION VELOCITY DIRECTION
@@ -5399,12 +5400,11 @@ REAL,    INTENT(OUT)   :: CD (:)      !! DRAG COEFFICIENT
 !     ----------------   
 
 INTEGER :: IJ
-REAL, PARAMETER   :: FLX4A0  = 1.13 ! CDFAC WIND SCALING (~BETAMAX FOR ST6)
-                                    ! QL finds 1.08 best based on recent ST6 testing 
-                                    ! - what winds were used?
-                                    ! 1.13 - 1.16 ~matches IPHYS=0
+REAL    :: FLX4A0    ! CDFAC WIND SCALING (~BETAMAX FOR ST6)
 
 ! ----------------------------------------------------------------------
+
+      FLX4A0  = CDFAC
 
 ! 1.  Tests ---------------------------------------------------------- *
 !

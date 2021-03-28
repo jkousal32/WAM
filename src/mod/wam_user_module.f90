@@ -145,6 +145,7 @@ INTEGER :: ISNONLIN            !! = 0 OLD DEPTH SCALING
 INTEGER :: ITEST               !! TEST OUTPUT UP TO LEVEL.
 
 REAL    :: BETAMAX             !! PARAMETER FOR WIND INPUT
+REAL    :: CDFAC               !! PARAMETER FOR WIND INPUT ST6
 
 ! ---------------------------------------------------------------------------- !
 
@@ -302,7 +303,7 @@ NAMELIST /WAM_NAMELIST/                                                        &
 &       SPHERICAL_RUN,              SHALLOW_RUN,                               &
 &       REFRACTION_D_RUN,           REFRACTION_C_RUN,                          &
 &       L_OBSTRUCTION,              L_DECOMP,                                  &
-&       BETAMAX,                    IPHYS,                                     &
+&       BETAMAX, CDFAC,             IPHYS,                                     &
 &       WAVE_BREAKING_RUN,          PHILLIPS_RUN,                              &
 &       ISNONLIN,                   ITEST,                                     &
 &       PROPAGATION_TIMESTEP,       PROPAGATION_TIMESTEP_UNIT,                 &
@@ -451,6 +452,7 @@ PHILLIPS_RUN         = .FALSE.  !! TRUE:  PHILLIPS SOURCE ON.
 ISNONLIN             = 0        !! OLD DEPTH SCALING FOR SNL.
 ITEST                = 0        !! TEST OUTPUT UP TO LEVEL.
 BETAMAX              = 1.20     !! PARAMETER FOR WIND INPUT.
+CDFAC                = 1.13     !! PARAMETER FOR WIND INPUT ST6
 
 ! ---------------------------------------------------------------------------- !
 
@@ -666,7 +668,7 @@ CALL SET_MODEL_OPTION (SPHERICAL     = SPHERICAL_RUN,                          &
 &                      INONLIN       = ISNONLIN)
 CALL SET_TEST_OPTION (TEST=ITEST)
 
-CALL SET_GENERAL_MODULE (B_MAX = BETAMAX)
+CALL SET_GENERAL_MODULE (B_MAX = BETAMAX, CDFAC1 = CDFAC)
 
 ! ---------------------------------------------------------------------------- !
 
