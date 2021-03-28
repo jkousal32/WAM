@@ -558,12 +558,6 @@ END IF
 
 IF (IPHYS .EQ. 2 ) then
    CALL WAVNU2 ( FL3, DEPTH, WN, CGG, 1E-7, 15, ICON)
-   !--------- Tests JK -----------------
-   !WRITE (IU06,*) 'FR(:): ', FR(:)
-   !WRITE (IU06,*) 'DEPTH(1): ', DEPTH(1)
-   !WRITE (IU06,*) 'WN(1,:): ', WN(1,:)
-   !------- End tests -----------------
-
 END IF
 
 ! -------------------------------------------------------------------------!
@@ -622,8 +616,8 @@ ELSE
    IF (LCFLX) SMIN(:,:,:) = SL(:,:,:) - SPOS(:,:,:)
 ENDIF
 
-IF (IPHYS .EQ. 2 ) THEN ! JK: ALTHOUGH FL3 NOT UPDATED SINCE LAST CALL FOR IPHYS=2,
-                        ! JK  USTAR AND Z0 HAVE -> CALL STRESSO AGAIN TO UPDATE PHIAW (?)
+IF (IPHYS .EQ. 2 ) THEN ! - ALTHOUGH FL3 NOT UPDATED SINCE LAST CALL FOR IPHYS=2,
+                        !   USTAR AND Z0 HAVE -> CALL STRESSO AGAIN TO UPDATE PHIAW 
    CALL STRESSO (FL3, SPOS, USTAR, UDIR, Z0, MIJ, TAUW_DUMMY, PHIAW, INDEP)
    ! TAUW CALC NOT NEEDED HERE (DONE IN SINPUT_ST6)
 ELSE
@@ -4925,8 +4919,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         TAUW(IJ)  = SQRT(TAUWX**2+TAUWY**2) 
         TAUNW(IJ) = SQRT(TAUNWX**2+TAUNWY**2) 
         SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /))
-        SPOS(IJ,:,:) = SL(IJ,:,:) - SDENSIG(:,:) !JK: CHECK: SL=SPOS+SMIN
-                                                 !JK         (SDENSIG=SMIN HERE)
+        SPOS(IJ,:,:) = SL(IJ,:,:) - SDENSIG(:,:) 
         FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /))
 
       END DO
