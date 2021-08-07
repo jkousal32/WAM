@@ -575,7 +575,6 @@ IF (IPHYS .EQ. 1 ) THEN
    CALL SINPUT_ARD (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
 ELSEIF (IPHYS .EQ. 2 ) THEN 
-
    CALL SINPUT_ST6 (FL3, CGG, WN, U10, USTAR, UDIR, ROAIRN, TAUW, TAUNW,   &
 &                   SL, SPOS, FL )
 ELSE
@@ -587,7 +586,8 @@ CALL TOTAL_ENERGY (FL3, EMEANWS, LLWS)
 CALL FEMEAN (FL3, EMEANWS, FMEANWS, LLWS)
 
 IF (IPHYS .EQ. 2 ) THEN
-   CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ)  
+   !CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ)  
+   CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
 ELSE
    CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
 ENDIF
@@ -712,7 +712,8 @@ CALL FEMEAN (FL3, EMEANWS, FMEANWS, LLWS)
 !         ------------------------------------------------------------         !
 
 IF (IPHYS .EQ. 2 ) THEN
-   CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ) 
+   !CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ) 
+   CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
 ELSE
    CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
 ENDIF
@@ -3640,6 +3641,8 @@ INTEGER :: IJ
 REAL, PARAMETER :: EPSUS = 1.0E-6
 REAL, PARAMETER :: FRIC = 28.0
 REAL, PARAMETER :: TAILFACTOR = 2.5
+!REAL, PARAMETER :: TAILFACTOR = 6.0 ! higher range needed for ST6
+!REAL, PARAMETER :: TAILFACTOR = 1.0 ! higher range needed for ST6
 REAL, PARAMETER :: TAILFACTOR_PM = 3.0
 
 REAL :: FPMH, FPPM, FM2, FPM, FPM4
@@ -3662,6 +3665,10 @@ DO IJ = 1,SIZE(USTAR)
     MIJ(IJ) = NINT(LOG10(FPM4)*INV_LOG_CO)+1
     MIJ(IJ) = MIN(MAX(1,MIJ(IJ)),ML)
 ENDDO
+
+!WRITE(*,*) 'TAILFACTOR=',TAILFACTOR
+!WRITE(*,*) 'FPMH=',FPMH
+!WRITE(*,*) 'MIJ=',MIJ
 
 END SUBROUTINE FRCUTINDEX
 
@@ -5065,7 +5072,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/ 4) --- Sum up dissipation terms and apply to all directions ------- /
         T12 = -1.0 * ( MAX(0.0,T1)+MAX(0.0,T2) )
         DO ITH = 1, NTH
-           D(IKN+ITH-1) = T12
+           D(IKN+(ITH-1)) = T12
         END DO
 !
         S = D * A
@@ -5079,20 +5086,16 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/T6     270 FORMAT (' TEST W3SDS6 : ',A,'(',A,')',':',70E11.3)
 !/T6     271 FORMAT (' TEST W3SDS6 : Total SDS  =',E13.5)
 
-!        SL(IJ,:,:) = SL(IJ,:,:) + RESHAPE(S,(/ NTH,NK /))
-!        FL(IJ,:,:) = FL(IJ,:,:) + RESHAPE(D,(/ NTH,NK /))
+        !SL(IJ,:,:) = SL(IJ,:,:) + RESHAPE(S,(/ NTH,NK /))
+        !FL(IJ,:,:) = FL(IJ,:,:) + RESHAPE(D,(/ NTH,NK /))
 
-
-        !DDS = RESHAPE(D,(/NTH,NK/),ORDER = (/2, 1/))
         DDS = RESHAPE(D,(/NTH,NK/))
-
         DO IK = 1,NK
           DO ITH = 1, NTH
             SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DDS(ITH,IK)*F(IJ,ITH,IK)
             FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DDS(ITH,IK)
           END DO
         END DO
-
 
       END DO
       ! END LOOP OVER LOC
