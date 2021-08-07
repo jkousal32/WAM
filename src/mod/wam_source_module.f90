@@ -5016,7 +5016,6 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 
       DO M = 1,SIZE(F,3)
         SIG(M)  = ZPI*FR(M)
-        DFII(M) = DF(M)
       END DO
 
       ! LOOP OVER LOCATIONS
@@ -5064,6 +5063,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         ADF    = ANAR * (NEXDENS**SDS6P2)
         XFAC   = (1.0-1.0/CO)/(CO-1.0/CO)
         DO IK = 1,NK
+           DFII(IK) = DF(IK) ! bug fix (spotted by Heinz): brought init into loc loop
 !          IF (IK .GT. 1) DFII(IK) = DFII(IK) * XFAC
            IF (IK .GT. 1 .AND. IK .LT. NK) DFII(IK) = DFII(IK) * XFAC
            T2(IK) = SDS6A2 * SUM( ADF(1:IK)*DFII(1:IK) )
