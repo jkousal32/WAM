@@ -4811,7 +4811,11 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         !    K = RESHAPE( A          , (/ NTH, NK /))
         ! To reshape from 2D to 1D:
         !    A = RESHAPE( F(IJ,:,:)  , (/NSPEC/)    )
-        A = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+
+        !A = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+        A = RESHAPE( F(IJ,:,:) , (/NSPEC/)) * CG2 / ( ZPI * SIG2 )! ACTION DENSITY SPECTRUM
+
+
 
         COSU   = COS(USDIR(IJ))
         SINU   = SIN(USDIR(IJ))
@@ -5001,6 +5005,7 @@ REAL              :: T12(SIZE(F,3))      ! = T1+T2 or combined dissipation
 REAL              :: ADF(SIZE(F,3)), XFAC, EDENSMAX ! temp. variables
 
 REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))  :: S, D, A    
+REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))   :: SIG2, CG2
 REAL, DIMENSION(SIZE(F,2),SIZE(F,3))  :: DDS
 
 
@@ -5018,10 +5023,21 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         SIG(M)  = ZPI*FR(M)
       END DO
 
+      IKN    = IRANGE(1,NSPEC,NTH)   ! Index vector for elements of 1 ... NK
+!                                    ! such that e.g. SIG(1:NK) = SIG2(IKN).
+      DO ITH = 1, NTH                    ! Apply to all directions 
+         SIG2   (IKN+(ITH-1)) = SIG
+         CG2    (IKN+(ITH-1)) = CGG(IJ,:)
+      END DO
+
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
 
-        A      = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+        !A      = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+        A = RESHAPE( F(IJ,:,:) , (/NSPEC/)) * CG2 / ( ZPI * SIG2 )! ACTION DENSITY SPECTRUM
+
+
+
 
 
 !/ 0) --- Initialize essential parameters ---------------------------- /
@@ -5038,7 +5054,8 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/ 1) --- Calculate threshold spectral density, spectral density, and
 !/        the level of exceedence EXDENS(f) -------------------------- /
         ETDENS  = ( ZPI * BNT ) / ( ANAR * CGG(IJ,:) * WN(IJ,:)**3 )
-        EDENS   = SUM(F(IJ,:,:),1) * ZPI * SIG * DELTH / CGG(IJ,:)  !E(f)
+        !EDENS   = SUM(F(IJ,:,:),1) * ZPI * SIG * DELTH / CGG(IJ,:)  !E(f)
+        EDENS   = SUM(F(IJ,:,:),1) * DELTH   !E(f)
         EXDENS  = MAX(0.0,EDENS-ETDENS)
 !
 !/    --- normalise by a generic spectral density -------------------- /
@@ -5086,16 +5103,16 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/T6     270 FORMAT (' TEST W3SDS6 : ',A,'(',A,')',':',70E11.3)
 !/T6     271 FORMAT (' TEST W3SDS6 : Total SDS  =',E13.5)
 
-        !SL(IJ,:,:) = SL(IJ,:,:) + RESHAPE(S,(/ NTH,NK /))
-        !FL(IJ,:,:) = FL(IJ,:,:) + RESHAPE(D,(/ NTH,NK /))
+        SL(IJ,:,:) = SL(IJ,:,:) + RESHAPE(S,(/ NTH,NK /))
+        FL(IJ,:,:) = FL(IJ,:,:) + RESHAPE(D,(/ NTH,NK /))
 
-        DDS = RESHAPE(D,(/NTH,NK/))
-        DO IK = 1,NK
-          DO ITH = 1, NTH
-            SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DDS(ITH,IK)*F(IJ,ITH,IK)
-            FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DDS(ITH,IK)
-          END DO
-        END DO
+        !DDS = RESHAPE(D,(/NTH,NK/))
+        !DO IK = 1,NK
+        !  DO ITH = 1, NTH
+        !    SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DDS(ITH,IK)*F(IJ,ITH,IK)
+        !    FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DDS(ITH,IK)
+        !  END DO
+        !END DO
 
       END DO
       ! END LOOP OVER LOC
@@ -5146,6 +5163,7 @@ REAL, DIMENSION(SIZE(F,3))             :: ABAND, KMAX, ANAR, BN, AORB, DDIS
 REAL, DIMENSION(SIZE(F,3))             :: SIG, DDEN
 REAL, DIMENSION(SIZE(F,2),SIZE(F,3))   :: K
 REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))   :: S, D, A
+REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))   :: SIG2, CG2
 REAL                                   :: B1
 REAL, DIMENSION(SIZE(F,2),SIZE(F,3))   :: DSWL 
 
@@ -5165,10 +5183,22 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         DDEN(M) = ZPI*DFIM(M)*SIG(M) 
       END DO
 
+      IKN    = IRANGE(1,NSPEC,NTH)   ! Index vector for elements of 1 ... NK
+!                                    ! such that e.g. SIG(1:NK) = SIG2(IKN).
+      DO ITH = 1, NTH                    ! Apply to all directions 
+         SIG2   (IKN+(ITH-1)) = SIG
+         CG2    (IKN+(ITH-1)) = CGG(IJ,:)
+      END DO
+
+
+
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
 
-        A      = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+        !A      = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
+        A = RESHAPE( F(IJ,:,:) , (/NSPEC/)) * CG2 / ( ZPI * SIG2 )! ACTION DENSITY SPECTRUM
+
+
 
 !/ 0) --- Initialize parameters -------------------------------------- /
         IKN   = IRANGE(1,NSPEC,NTH)            ! Index vector for array access, e.g.  
@@ -5228,14 +5258,17 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !       WRITE(*,*) ' SWL6_tot =',sum(SUM(RESHAPE(S,(/ NTH,NK /)),1)*DDEN/CG)
 
         !DSWL = RESHAPE(D,(/NTH,NK/),ORDER = (/2, 1/))
-        DSWL = RESHAPE(D,(/NTH,NK/))
+        !DSWL = RESHAPE(D,(/NTH,NK/))
 
-        DO IK = 1,NK
-          DO ITH = 1, NTH
-            SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DSWL(ITH,IK)*F(IJ,ITH,IK)
-            FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DSWL(ITH,IK)
-          END DO
-        END DO
+        !DO IK = 1,NK
+        !  DO ITH = 1, NTH
+        !    SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DSWL(ITH,IK)*F(IJ,ITH,IK)
+        !    FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DSWL(ITH,IK)
+        !  END DO
+        !END DO
+
+        SL(IJ,:,:) = SL(IJ,:,:) + RESHAPE(S,(/ NTH,NK /))
+        FL(IJ,:,:) = FL(IJ,:,:) + RESHAPE(D,(/ NTH,NK /))
 
 
       END DO
