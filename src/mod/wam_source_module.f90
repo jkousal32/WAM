@@ -586,8 +586,8 @@ CALL TOTAL_ENERGY (FL3, EMEANWS, LLWS)
 CALL FEMEAN (FL3, EMEANWS, FMEANWS, LLWS)
 
 IF (IPHYS .EQ. 2 ) THEN
-   !CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ)  
-   CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
+   CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ)  
+   !CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
 ELSE
    CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
 ENDIF
@@ -712,8 +712,8 @@ CALL FEMEAN (FL3, EMEANWS, FMEANWS, LLWS)
 !         ------------------------------------------------------------         !
 
 IF (IPHYS .EQ. 2 ) THEN
-   !CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ) 
-   CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
+   CALL FRCUTINDEX_ST6(FL3, FMEAN, USTAR, MIJ) 
+   !CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
 ELSE
    CALL FRCUTINDEX    (FMEAN, FMEANWS, USTAR, MIJ)
 ENDIF
@@ -4806,16 +4806,6 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       DO IJ = 1,SIZE(F,1)
 
 !/ 0) --- set up a basic variables ----------------------------------- /
-    
-        ! To reshape from 1D to 2D: 
-        !    K = RESHAPE( A          , (/ NTH, NK /))
-        ! To reshape from 2D to 1D:
-        !    A = RESHAPE( F(IJ,:,:)  , (/NSPEC/)    )
-
-        !A = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
-        A = RESHAPE( F(IJ,:,:) , (/NSPEC/)) * CG2 / ( ZPI * SIG2 )! ACTION DENSITY SPECTRUM
-
-
 
         COSU   = COS(USDIR(IJ))
         SINU   = SIN(USDIR(IJ))
@@ -4856,6 +4846,11 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         END DO
         CINV2  = WN2 / SIG2            ! inverse phase speed
 
+        ! To reshape from 1D to 2D: 
+        !    K = RESHAPE( A          , (/ NTH, NK /))
+        ! To reshape from 2D to 1D:
+        !    A = RESHAPE( F(IJ,:,:)  , (/NSPEC/)    )
+        A = RESHAPE( F(IJ,:,:) , (/NSPEC/)) * CG2 / ( ZPI * SIG2 )! ACTION DENSITY SPECTRUM
 !
 !/ 1) --- calculate 1d action density spectrum (A(sigma)) and
 !/        zero-out values less than 1.0E-32 to avoid NaNs when
@@ -5033,11 +5028,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
 
-        !A      = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
         A = RESHAPE( F(IJ,:,:) , (/NSPEC/)) * CG2 / ( ZPI * SIG2 )! ACTION DENSITY SPECTRUM
-
-
-
 
 
 !/ 0) --- Initialize essential parameters ---------------------------- /
@@ -5195,9 +5186,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
 
-        !A      = RESHAPE( F(IJ,:,:) , (/NSPEC/))   ! ACTION DENSITY SPECTRUM
         A = RESHAPE( F(IJ,:,:) , (/NSPEC/)) * CG2 / ( ZPI * SIG2 )! ACTION DENSITY SPECTRUM
-
 
 
 !/ 0) --- Initialize parameters -------------------------------------- /

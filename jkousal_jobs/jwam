@@ -6,8 +6,8 @@
 #
 #SBATCH --job-name=TS_Wave
 #SBATCH --partition=compute
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-node=2
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=4
 #SBATCH --time=00:30:00
 #SBATCH --mail-type=FAIL
 #SBATCH --account=gg0028
