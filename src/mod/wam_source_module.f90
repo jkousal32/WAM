@@ -4781,6 +4781,7 @@ REAL, DIMENSION(SIZE(F,2),SIZE(F,3))  :: SDENSIG, K                           ! 
 REAL, DIMENSION(SIZE(F,3))            :: ADENSIG, KMAX, ANAR, SQRTBN          ! 1,2,3)
 REAL, DIMENSION(SIZE(F,2)*SIZE(F,3))  :: W1, W2, SQRTBN2, CINV2, S, D, A      ! 4,7)
 REAL, DIMENSION(SIZE(F,3))            :: LFACT, CINV                          ! 5)
+REAL, DIMENSION(SIZE(F,2),SIZE(F,3))  :: DINPOS, DINTOT
 REAL, PARAMETER   :: SIN6WS  = 32.  ! ST6 PARAM
 REAL, PARAMETER   :: SIN6A0  = 0.09  ! ST6 PARAM
 
@@ -4886,6 +4887,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         D       = (ROAIRN(IJ) / ROWATER) * SIG2 * &
                   (2.8 - ( 1. + TANH(10.*SQRTBN2*W1 - 11.) )) *SQRTBN2*W1
 !
+        DINPOS  = RESHAPE(D,(/ NTH,NK /))
         S       = D * A
 !
 !/ 5) --- calculate reduction factor LFACT using non-directional
@@ -4914,19 +4916,34 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
           W2    = MIN( 0., UPROXY * CINV2* ( ECOS2*COSU + ESIN2*SINU ) - 1. )**2
           D     = D - ( (ROAIRN(IJ) / ROWATER) * SIG2 * SIN6A0 *                   &
                   (2.8 - ( 1. + TANH(10.*SQRTBN2*W2 - 11.) )) *SQRTBN2*W2 )
+          DINTOT= RESHAPE(D,(/NTH,NK/))
           S     = D * A
 !     --- compute negative component of the wave supported stresses
 !         from negative part of the wind input  ---------------------- /
           SDENSIG = RESHAPE(S*SIG2/CG2,(/ NTH,NK /))
           CALL TAU_WAVE_ATMOS(SDENSIG, CINV, SIG, DSII, TAUNWX, TAUNWY )
+        ELSE
+          DINTOT=DINPOS
         END IF
 !
 
         TAUW(IJ)  = SQRT(TAUWX**2+TAUWY**2) 
         TAUNW(IJ) = SQRT(TAUNWX**2+TAUNWY**2) 
-        SL(IJ,:,:) = RESHAPE(S,(/ NTH,NK /))
-        SPOS(IJ,:,:) = SL(IJ,:,:) - SDENSIG(:,:) 
-        FL(IJ,:,:) = RESHAPE(D,(/ NTH,NK /))
+
+        DO IK = 1,NK
+          DO ITH = 1, NTH
+            SL(IJ,ITH,IK)   = DINTOT(ITH,IK)*F(IJ,ITH,IK)
+            SPOS(IJ,ITH,IK) = DINPOS(ITH,IK)*F(IJ,ITH,IK)
+          END DO
+        END DO
+
+        FL(IJ,:,:)   = DINTOT(:,:)
+
+        ! Print check: confirms SPOS ~10% larger than SL (i.e. total S)
+        !IF ((IJ.GT.4) .AND. (IJ.LT.8)) THEN
+        !   WRITE(*,*) 'IJ=',IJ,', SL       =',SUM(SUM(SL(IJ,:,:)  ,1),1)
+        !   WRITE(*,*) 'IJ=',IJ,', SPOS     =',SUM(SUM(SPOS(IJ,:,:),1),1)
+        !END IF
 
       END DO
       ! END LOOP OVER LOC
@@ -5029,7 +5046,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
       DO IJ = 1,SIZE(F,1)
 
         A = RESHAPE( F(IJ,:,:) , (/NSPEC/)) * CG2 / ( ZPI * SIG2 )! ACTION DENSITY SPECTRUM
-
+        ! WAM E(f,theta) to WW3 A(k,theta) conversion factor: CG2 / ( ZPI * SIG2 ) 
 
 !/ 0) --- Initialize essential parameters ---------------------------- /
         IKN     = IRANGE(1,NSPEC,NTH)    ! Index vector for elements of 1,
@@ -5083,7 +5100,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
            D(IKN+(ITH-1)) = T12
         END DO
 !
-        S = D * A
+        !S = D * A
 !
 !/ 5) --- Diagnostic output (switch !/T6) ---------------------------- /
 !/T6     CALL STME21 ( TIME , IDTIME )
@@ -5094,16 +5111,13 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !/T6     270 FORMAT (' TEST W3SDS6 : ',A,'(',A,')',':',70E11.3)
 !/T6     271 FORMAT (' TEST W3SDS6 : Total SDS  =',E13.5)
 
-        SL(IJ,:,:) = SL(IJ,:,:) + RESHAPE(S,(/ NTH,NK /))
-        FL(IJ,:,:) = FL(IJ,:,:) + RESHAPE(D,(/ NTH,NK /))
-
-        !DDS = RESHAPE(D,(/NTH,NK/))
-        !DO IK = 1,NK
-        !  DO ITH = 1, NTH
-        !    SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DDS(ITH,IK)*F(IJ,ITH,IK)
-        !    FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DDS(ITH,IK)
-        !  END DO
-        !END DO
+        DDS = RESHAPE(D,(/NTH,NK/))
+        DO IK = 1,NK
+         DO ITH = 1, NTH
+            SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DDS(ITH,IK)*F(IJ,ITH,IK)
+            FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DDS(ITH,IK)
+          END DO
+        END DO
 
       END DO
       ! END LOOP OVER LOC
@@ -5237,7 +5251,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
            D(IKN+(ITH-1)) = DDIS
         END DO
 !
-        S = D * A
+        !S = D * A
 !
 !       WRITE(*,*) ' B1       =',B1
 !       WRITE(*,*) ' DDIS_tot =',SUM(DDIS*ABAND*DDEN/CG)
@@ -5246,18 +5260,13 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !       WRITE(*,*) ' '
 !       WRITE(*,*) ' SWL6_tot =',sum(SUM(RESHAPE(S,(/ NTH,NK /)),1)*DDEN/CG)
 
-        !DSWL = RESHAPE(D,(/NTH,NK/),ORDER = (/2, 1/))
-        !DSWL = RESHAPE(D,(/NTH,NK/))
-
-        !DO IK = 1,NK
-        !  DO ITH = 1, NTH
-        !    SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DSWL(ITH,IK)*F(IJ,ITH,IK)
-        !    FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DSWL(ITH,IK)
-        !  END DO
-        !END DO
-
-        SL(IJ,:,:) = SL(IJ,:,:) + RESHAPE(S,(/ NTH,NK /))
-        FL(IJ,:,:) = FL(IJ,:,:) + RESHAPE(D,(/ NTH,NK /))
+        DSWL = RESHAPE(D,(/NTH,NK/))
+        DO IK = 1,NK
+          DO ITH = 1, NTH
+            SL(IJ,ITH,IK) = SL(IJ,ITH,IK) + DSWL(ITH,IK)*F(IJ,ITH,IK)
+            FL(IJ,ITH,IK) = FL(IJ,ITH,IK) + DSWL(ITH,IK)
+          END DO
+        END DO
 
 
       END DO
