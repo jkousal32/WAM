@@ -4887,7 +4887,6 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
         D       = (ROAIRN(IJ) / ROWATER) * SIG2 * &
                   (2.8 - ( 1. + TANH(10.*SQRTBN2*W1 - 11.) )) *SQRTBN2*W1
 !
-        DINPOS  = RESHAPE(D,(/ NTH,NK /))
         S       = D * A
 !
 !/ 5) --- calculate reduction factor LFACT using non-directional
@@ -4906,6 +4905,7 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
            END DO
            S = D * A
         END IF
+        DINPOS  = RESHAPE(D,(/ NTH,NK /))
 !
 !/ 7) --- compute negative wind input for adverse winds. negative
 !/        growth is typically smaller by a factor of ~2.5 (=.28/.11)
@@ -5039,11 +5039,14 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !                                    ! such that e.g. SIG(1:NK) = SIG2(IKN).
       DO ITH = 1, NTH                    ! Apply to all directions 
          SIG2   (IKN+(ITH-1)) = SIG
-         CG2    (IKN+(ITH-1)) = CGG(IJ,:)
       END DO
 
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
+
+         DO ITH = 1, NTH                    ! Apply to all directions 
+            CG2    (IKN+(ITH-1)) = CGG(IJ,:)
+         END DO
 
         A = RESHAPE( F(IJ,:,:) , (/NSPEC/)) * CG2 / ( ZPI * SIG2 )! ACTION DENSITY SPECTRUM
         ! WAM E(f,theta) to WW3 A(k,theta) conversion factor: CG2 / ( ZPI * SIG2 ) 

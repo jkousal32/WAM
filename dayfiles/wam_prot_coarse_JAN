@@ -39,7 +39,7 @@
  L_OBSTRUCTION   = F,
  L_DECOMP        = F,
  BETAMAX =   1.200000    ,
- CDFAC   =   1.130000    ,
+ CDFAC   =   1.080000    ,
  IPHYS   =           2,
  WAVE_BREAKING_RUN       = F,
  PHILLIPS_RUN    = F,
@@ -590,7 +590,7 @@
   ROAIR/ROWATER............................... XEPS =   1.2250000E-03
   1./XEPS ................................. XINVEPS =    816.3265    
   PARAMETER FOR WIND INPUT ................ BETAMAX =    1.200000    
-  PARAMETER FOR ST6 WIND INPUT .............. CDFAC =    1.130000    
+  PARAMETER FOR ST6 WIND INPUT .............. CDFAC =    1.080000    
   SHIFTS GROWTH CURVE ........................ ZALP =   8.0000004E-03
   MINIMUM CHARNOCK CONSTANT ................. ALPHA =   7.4999998E-03
   SHELTERING COEFFICIENT .............. TAUWSHELTER =   0.0000000E+00
@@ -2180,7 +2180,7 @@
   +++ MPI successfully finalized ! 
   +++++++++++++++++++++++++++++++++
   + TOTAL USER TIME IN SECONDS    +
-  +    4.04340791702271     
+  +    4.17091917991638     
   +                               +
   + COMMUNICATION TIME IN SECONDS +
   +            1

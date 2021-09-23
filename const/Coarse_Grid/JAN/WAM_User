@@ -93,7 +93,7 @@ C   BETAMAX  REAL PARAMETER FOR WIND INPUT REAL; (DEFAULT 1.20)
 C
 C   BETAMAX  CDFAC
 C----------  -----
-       1.20  1.13
+       1.20  1.08
 C
 C ------------------------------------------------------------------------------
 C
