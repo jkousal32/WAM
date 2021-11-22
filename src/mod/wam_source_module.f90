@@ -414,6 +414,10 @@ SUBROUTINE IMPLSCH (FL3, U10, UDIR, TAUW, USTAR, Z0, ROAIRN, WSTAR, DEPTH, INDEP
 !       S. HASSELMANN AND K. HASSELMANN, "A GLOBAL WAVE MODEL",                !
 !       30/6/85 (UNPUBLISHED NOTE)                                             !
 !                                                                              !
+
+!    TODO:Move lines out of IJ loc. loop that don't need to be there (J. Kousal)
+!       - all ST6 related subroutines
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -4383,6 +4387,14 @@ SUBROUTINE WAVNU2 ( F, DEPTH, WN, CGG, EPS, NMAX, ICON)
 !     Because of the nature of the equation, K is calculated
 !     with an itterative procedure.
 
+!     ORIGIN.
+!     ----------
+!     Adapted from Babanin Young Donelan & Banner (BYDB) physics 
+!     as implemented as ST6 in WAVEWATCH-III 
+!     WW3 module:       W3DISPMD
+!     WW3 subroutine:   WAVNU2
+!     Implementation into WAM DECEMBER 2021 by J. Kousal 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -4520,6 +4532,14 @@ SUBROUTINE LFACTOR(S, CINV, U10, USTAR, USDIR, ROAIRN, SIG, DSII, LFACT, TAUWX, 
 !                          LFACT(F) = MIN(1,exp((1-U/C(F))*RTAU))
 !        Then alter RTAU and repeat 3) until our constraint is matched.
 !
+!     ORIGIN.
+!     ----------
+!     Adapted from Babanin Young Donelan & Banner (BYDB) physics 
+!     as implemented as ST6 in WAVEWATCH-III 
+!     WW3 module:       W3SRC6MD    
+!     WW3 subroutine:   LFACTOR
+!     Implementation into WAM DECEMBER 2021 by J. Kousal 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -4742,6 +4762,14 @@ SUBROUTINE SINPUT_ST6 (F, CGG, WN, UABS, USTAR, USDIR, ROAIRN, TAUW, TAUNW,    &
 !
 !      Sin = B * E
 !
+!     ORIGIN.
+!     ----------
+!     Adapted from Babanin Young Donelan & Banner (BYDB) physics 
+!     as implemented as ST6 in WAVEWATCH-III
+!     WW3 module:       W3SRC6MD
+!     WW3 subroutine:   W3SIN6
+!     Implementation into WAM DECEMBER 2021 by J. Kousal 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -4974,6 +5002,14 @@ SUBROUTINE SDISSIP_ST6 (F, CGG, WN, SL, FL )
 !
 !      Sds = (T1 + T2) * E
 !
+!     ORIGIN.
+!     ----------
+!     Adapted from Babanin Young Donelan & Banner (BYDB) physics 
+!     as implemented as ST6 in WAVEWATCH-III
+!     WW3 module:       W3SRC6MD
+!     WW3 subroutine:   W3SDS6
+!     Implementation into ECWAM DECEMBER 2021 by J. Kousal 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -5144,6 +5180,14 @@ SUBROUTINE W3SWL6 (F, CGG, WN, SL, FL )
 !
 !     S = D * A
 !
+!     ORIGIN.
+!     ----------
+!     Adapted from Babanin Young Donelan & Banner (BYDB) physics 
+!     as implemented as ST6 in WAVEWATCH-III 
+!     WW3 module:       W3SWLDMD
+!     WW3 subroutine:   W3SWL6
+!     Implementation into WAM DECEMBER 2021 by J. Kousal 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -5195,7 +5239,9 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !                                    ! such that e.g. SIG(1:NK) = SIG2(IKN).
       DO ITH = 1, NTH                    ! Apply to all directions 
          SIG2   (IKN+(ITH-1)) = SIG
-         CG2    (IKN+(ITH-1)) = CGG(IJ,:)
+         DO IJ = 1,SIZE(F,1)
+            CG2    (IKN+(ITH-1)) = CGG(IJ,:)
+         END DO
       END DO
 
 
@@ -5300,6 +5346,14 @@ SUBROUTINE TAU_WAVE_ATMOS(S, CINV, SIG, DSII, TAUNWX, TAUNWY )
 !            TAUNW_X,Y = GRAV * DWAT * | [SinX,Y(F)]/C(F) dF
 !                                      /
 !
+!     ORIGIN.
+!     ----------
+!     Adapted from Babanin Young Donelan & Banner (BYDB) physics 
+!     as implemented as ST6 in WAVEWATCH-III 
+!     WW3 module:       W3SRC6MD    
+!     WW3 subroutine:   TAU_WAVE_ATMOS
+!     Implementation into WAM DECEMBER 2021 by J. Kousal 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -5408,6 +5462,14 @@ SUBROUTINE W3FLX4 ( ZWND, U10, U10D, CDFAC, UST, USTD, Z0, CD )
 !     CD    = 1E-4 ( -0.016 U10**2 + 0.967U10 + 8.058)
 !     USTAR = U10 * SQRT( U10 )
 !
+!     ORIGIN.
+!     ----------
+!     Adapted from Babanin Young Donelan & Banner (BYDB) physics 
+!     as implemented as ST6 in WAVEWATCH-III 
+!     WW3 module:       W3FLX4MD
+!     WW3 subroutine:   W3FLX4
+!     Implementation into WAM DECEMBER 2021 by J. Kousal 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -5478,6 +5540,14 @@ SUBROUTINE FRCUTINDEX_ST6(F, FMEAN, USTAR, MIJ)
 !
 !     Impose HF tail according to ST6
 !
+!     ORIGIN.
+!     ----------
+!     Adapted from Babanin Young Donelan & Banner (BYDB) physics 
+!     as implemented as ST6 in WAVEWATCH-III
+!     WW3 module:       W3SRCEMD
+!     WW3 subroutine:   
+!     Implementation into WAM DECEMBER 2021 by J. Kousal 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -5550,6 +5620,14 @@ FUNCTION IRANGE(X0,X1,DX) RESULT(IX)
 !         Generate a sequence of linear-spaced integer numbers.
 !         Used for instance array addressing (indexing).
 
+!     ORIGIN.
+!     ----------
+!     Adapted from Babanin Young Donelan & Banner (BYDB) physics 
+!     as implemented as ST6 in WAVEWATCH-III 
+!     WW3 module:       W3SRC6MD    
+!     WW3 subroutine:   IRANGE
+!     Implementation into WAM DECEMBER 2021 by J. Kousal 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
@@ -5589,6 +5667,15 @@ FUNCTION TAUWINDS(SDENSIG,CINV,DSII) RESULT(TAU_WINDS)
 !                            / FRMAX
 !      tau = g * rho_water * | Sin(f)/C(f) df
 !                            /
+
+!     ORIGIN.
+!     ----------
+!     Adapted from Babanin Young Donelan & Banner (BYDB) physics 
+!     as implemented as ST6 in WAVEWATCH-III 
+!     WW3 module:       W3SRC6MD    
+!     WW3 subroutine:   TAUWINDS
+!     Implementation into WAM DECEMBER 2021 by J. Kousal 
+
 ! ---------------------------------------------------------------------------- !
 !                                                                              !
 !     INTERFACE VARIABLES.                                                     !
