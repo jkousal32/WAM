@@ -5239,15 +5239,16 @@ INTEGER :: NSPEC ! NUMBER OF SPECTRAL BINS
 !                                    ! such that e.g. SIG(1:NK) = SIG2(IKN).
       DO ITH = 1, NTH                    ! Apply to all directions 
          SIG2   (IKN+(ITH-1)) = SIG
-         DO IJ = 1,SIZE(F,1)
-            CG2    (IKN+(ITH-1)) = CGG(IJ,:)
-         END DO
       END DO
 
 
 
       ! LOOP OVER LOCATIONS
       DO IJ = 1,SIZE(F,1)
+
+        DO ITH = 1, NTH                    ! Apply to all directions
+           CG2    (IKN+(ITH-1)) = CGG(IJ,:)
+        END DO
 
         A = RESHAPE( F(IJ,:,:) , (/NSPEC/)) * CG2 / ( ZPI * SIG2 )! ACTION DENSITY SPECTRUM
 
