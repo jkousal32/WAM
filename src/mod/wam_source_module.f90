@@ -581,6 +581,7 @@ IF (IPHYS .EQ. 1 ) THEN
 ELSEIF (IPHYS .EQ. 2 ) THEN 
    CALL SINPUT_ST6 (FL3, CGG, WN, U10, USTAR, UDIR, ROAIRN, TAUW, TAUNW,   &
 &                   SL, SPOS, FL )
+   LLWS = SPOS.GT.0. ! LLWS must be defined 
 ELSE
    CALL SINPUT     (FL3, SL, SPOS, FL, USTAR, UDIR, Z0, ROAIRN, WSTAR,     &
 &                   INDEP, LLWS)
