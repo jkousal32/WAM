@@ -476,14 +476,14 @@ REAL    :: CGG(SIZE(FL3,1),SIZE(FL3,3))  !! GROUP VELOCITY
 INTEGER :: ICON                          !! CONTROL COUNTER
 
 ! FOR PEAK FREQ
-REAL :: F1D(SIZE(FL3,1),SIZE(FL3,3))    !! FREQUENCY SPECTRA
-REAL :: F1A(SIZE(FL3,1),SIZE(FL3,2))    !! DIRECTIONAL SPECTRA
-REAL :: THMAX(SIZE(FL3,1))              !! MAX FREQ SPECTRA
-REAL :: FP(SIZE(FL3,1))              !! MAX FREQ SPECTRA
-REAL :: XMAX(SIZE(FL3,1))              !! MAX FREQ SPECTRA
-REAL :: SIG_OM(SIZE(FL3,1))            !! RELATIVE WIDTH IN FREQUENCY
-REAL :: YMAX(SIZE(FL3,1))              !! MAX DIRECTIONAL SPECTRUM
-REAL :: SIG_TH(SIZE(FL3,1))            !! RELATIVE WIDTH IN DIRECTION
+!REAL :: F1D(SIZE(FL3,1),SIZE(FL3,3))    !! FREQUENCY SPECTRA
+!REAL :: F1A(SIZE(FL3,1),SIZE(FL3,2))    !! DIRECTIONAL SPECTRA
+!REAL :: THMAX(SIZE(FL3,1))              !! MAX FREQ SPECTRA
+!REAL :: FP(SIZE(FL3,1))              !! MAX FREQ SPECTRA
+!REAL :: XMAX(SIZE(FL3,1))              !! MAX FREQ SPECTRA
+!REAL :: SIG_OM(SIZE(FL3,1))            !! RELATIVE WIDTH IN FREQUENCY
+!REAL :: YMAX(SIZE(FL3,1))              !! MAX DIRECTIONAL SPECTRUM
+!REAL :: SIG_TH(SIZE(FL3,1))            !! RELATIVE WIDTH IN DIRECTION
 
 ! FOR SINPUT_ST6
 REAL :: TAUNW(SIZE(FL3,1))       ! TOTAL NEGATIVE WAVE-SUPPORTED STRESS
@@ -543,19 +543,19 @@ END IF
 !     2.4 Peak frequencies                                                     !
 !         ---------------------------------                                    !
 
-IF (IPHYS .EQ. 2 ) then
-   F1D = SUM(FL3, DIM=2)*DELTH  !! 1-D Frequency Spectra
+!IF (IPHYS .EQ. 2 ) then
+!   F1D = SUM(FL3, DIM=2)*DELTH  !! 1-D Frequency Spectra
    
-   DO K = 1, KL
-      M = 1
-      F1A(:,K) = FL3(:,K,M)*DF(M)
-      DO M = 2,ML
-         F1A(:,K) = F1A(:,K)+FL3(:,K,M)*DF(M)
-      END DO
-   END DO
+!   DO K = 1, KL
+!      M = 1
+!      F1A(:,K) = FL3(:,K,M)*DF(M)
+!      DO M = 2,ML
+!         F1A(:,K) = F1A(:,K)+FL3(:,K,M)*DF(M)
+!      END DO
+!   END DO
 
-   CALL PEAK_FREQ (F1D, F1A, XMAX, FP, SIG_OM, YMAX, THMAX, SIG_TH)
-END IF
+!   CALL PEAK_FREQ (F1D, F1A, XMAX, FP, SIG_OM, YMAX, THMAX, SIG_TH)
+!END IF
 
 !     2.5 GROUP VELOCITY AND WAVE NUMBER                                       !
 !         ---------------------------------                                    !
